@@ -229,6 +229,10 @@ def run_tests(browser):
     p7b.wait_for_selector('#emptyBox:not([hidden])', timeout=8000)
     check('E2E-07b 福岡空狀態顯示', p7b.locator('#emptyBox').is_visible())
     check('E2E-07b 空狀態下圖表隱藏', p7b.locator('#chart').evaluate('el => el.hidden'))
+    check('E2E-07b 空狀態下 Summary 清空',
+          p7b.locator('#sumAvg').inner_text() == '—' and
+          p7b.locator('#sumMin').inner_text() == '—' and
+          p7b.locator('#sumPeak').inner_text() == '—')
     p7b.locator('#routeTabs button[data-route="TPE-NRT"]').click()
     p7b.wait_for_selector('#chart path.price-line', timeout=8000)
     check('E2E-07b 切回東京圖表恢復', not p7b.locator('#chart').evaluate('el => el.hidden') and

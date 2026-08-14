@@ -415,11 +415,14 @@
     renderFlightSel(weeks);
     skeleton.hidden = true;
     if (weeks.length === 0) {
-      // 該航線暫無資料（如新增航線尚未爬蟲）：顯示空狀態而非白畫面
+      // 該航線暫無資料（如新增航線尚未爬蟲）：隱藏圖表、顯示空狀態、清空 Summary
       chart.hidden = true;
       emptyBox.hidden = false;
       chartTitle.textContent = '';
       chart.removeAttribute('aria-label');
+      sumMin.textContent = '—'; sumMinS.textContent = '';
+      sumAvg.textContent = '—';
+      sumPeak.textContent = '—'; sumPeakS.textContent = '';
       return;
     }
     chart.hidden = false;
