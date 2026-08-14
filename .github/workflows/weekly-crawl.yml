@@ -24,6 +24,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Cron jitter（隨機延遲 0~30 分，避免固定整點模式）
+        # 只有排程觸發才延遲；手動執行（workflow_dispatch）不需打亂節奏，立即開始
+        if: github.event_name == 'schedule'
         run: python -c "import random,time; time.sleep(random.uniform(0, 1800))"
 
       - name: Crawl prices
