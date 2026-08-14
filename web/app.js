@@ -11,6 +11,7 @@
     CONFIG,
     aggregateWeekly, globalAverage, diffPct, filterRange,
     minMark, detectPeak, isStale, originAllowed, formatGeneratedAt, summaryData,
+    hasAnyPrice,
   } = window.PriceAgg;
 
   // ═══════════════ DOM refs ═══════════════
@@ -21,6 +22,15 @@
   const skeleton = $('skeleton'), errBox = $('errBox'), errDetail = $('errDetail'), retryBtn = $('retryBtn');
   const emptyBox = $('emptyBox'), staleBar = $('staleBar'), staleText = $('staleText'), updText = $('updText');
   const sumMin = $('sumMin'), sumMinS = $('sumMinS'), sumAvg = $('sumAvg'), sumPeak = $('sumPeak'), sumPeakS = $('sumPeakS');
+  const summary = $('summary'); // 三卡容器（無資料時整區隱藏）
+
+  // ⚠️ SVG 元素的 `.hidden = true` 只改 IDL property、不會反映成 hidden attribute（Chromium 怪癖），
+  // 而 CSS `[hidden] { display:none }` 依賴 attribute → 圖表會"看似隱藏其實仍顯示"。
+  // 統一用 setAttribute/removeAttribute 控制 #chart 顯示狀態。
+  const setChartHidden = hidden => {
+    if (hidden) chart.setAttribute('hidden', '');
+    else chart.removeAttribute('hidden');
+  };
 
   // ═══════════════ 應用狀態（單一來源） ═══════════════
   const state = {
@@ -214,10 +224,25 @@
 
   function buildChart() {
     const weeks = routeCache.get(state.route) || [];
+    // 航線無任何有效價格資料（trips 全缺 / 全部無效）：一律空狀態，不渲染空網格圖表。
+    // 所有進入點（切航線 / 切航班 / 切範圍）都經過這裡，避免任一操作後空圖表復現（F-11 擴充）
+    if (!hasAnyPrice(weeks)) {
+      setChartHidden(true);
+      emptyBox.hidden = false;
+      chartTitle.textContent = '';
+      chart.removeAttribute('aria-label');
+      chart.innerHTML = ''; // 清掉殘留圖形（如切航線前他航線的網格/折線）
+      // 無資料：Summary 三卡清空並整區隱藏（避免殘留他航線數字 / 「—」殘影）
+      sumMin.textContent = '—'; sumMinS.textContent = '';
+      sumAvg.textContent = '—';
+      sumPeak.textContent = '—'; sumPeakS.textContent = '';
+      summary.hidden = true;
+      return;
+    }
     const visible = filterRange(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
     const avg = globalAverage(weeks); // 全域（不隨範圍漂移，F-06）
     const n = visible.length;
-    if (n === 0) return;
+    if (n === 0) return; // 可見範圍無資料（防呆）
     const X = i => M.l + i * (W - M.l - M.r) / Math.max(n - 1, 1); // 單週資料時避免除以零（NaN）
     const Y = v => H - M.b - (v - YMIN) / (YMAX - YMIN) * (H - M.t - M.b);
     const Yclamp = v => Math.max(Y(v), M.t); // E21：出界點 clamp 至圖表上緣
@@ -364,10 +389,11 @@
   function renderSummary(visible, avg) {
     const s = summaryData(visible, avg);
     if (!s.minWeek) {
-      sumMin.textContent = '—'; sumMinS.textContent = '';
-      sumAvg.textContent = '—'; sumPeak.textContent = '—'; sumPeakS.textContent = '';
+      // 可見範圍無有效價（如全缺週的早期區間）：Summary 整區隱藏
+      summary.hidden = true;
       return;
     }
+    summary.hidden = false;
     const dMin = diffPct(s.minWeek.min, avg);
     sumMin.textContent = fmtD(s.minWeek.d) + ' 出發 · ' + fmt(s.minWeek.min);
     sumMinS.textContent = '比平均' + (dMin <= 0 ? '低' : '高') + ' ' + Math.abs(dMin) + '%';
@@ -380,14 +406,14 @@
   function setLoading(loading) {
     state.loading = loading;
     skeleton.hidden = !loading;
-    if (loading) { chart.hidden = true; emptyBox.hidden = true; }
+    if (loading) { setChartHidden(true); emptyBox.hidden = true; }
     // 載入完成後的 chart/emptyBox 顯示由 drawCurrentRoute 依資料決定（避免空航線顯示空白 SVG）
     setToolbarDisabled(loading);
   }
 
   function showError(code, detail) {
     errBox.hidden = false;
-    chart.hidden = true;
+    setChartHidden(true);
     skeleton.hidden = true;
     const msgs = {
       ERR_ORIGIN_FORBIDDEN: ['來源不被允許', '請改用 GitHub Pages 網址開啟'],
@@ -414,18 +440,8 @@
     routeCache.set(state.route, weeks);
     renderFlightSel(weeks);
     skeleton.hidden = true;
-    if (weeks.length === 0) {
-      // 該航線暫無資料（如新增航線尚未爬蟲）：隱藏圖表、顯示空狀態、清空 Summary
-      chart.hidden = true;
-      emptyBox.hidden = false;
-      chartTitle.textContent = '';
-      chart.removeAttribute('aria-label');
-      sumMin.textContent = '—'; sumMinS.textContent = '';
-      sumAvg.textContent = '—';
-      sumPeak.textContent = '—'; sumPeakS.textContent = '';
-      return;
-    }
-    chart.hidden = false;
+    // 圖表顯示/隱藏與空狀態由 buildChart 依資料決定（含 trips 全缺、全部無效價）
+    setChartHidden(false);
     emptyBox.hidden = true;
     buildChart();
   }
@@ -459,7 +475,8 @@
     if (!INDEX.trips.length) {
       setLoading(false);
       emptyBox.hidden = false;
-      chart.hidden = true;
+      setChartHidden(true);
+      summary.hidden = true; // 無資料：Summary 三卡整區隱藏
       return;
     }
     // 5. 載入預設航線

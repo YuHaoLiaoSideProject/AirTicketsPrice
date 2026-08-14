@@ -98,6 +98,24 @@ test('F-20 部分 trip 失敗 → 失敗週為斷點，其餘週正常', () => {
   ]);
 });
 
+// ── F-11 空資料狀態判定（含全部無效價擴充）──
+test('F-11 hasAnyPrice：空週 / 全缺 / 全無效價 → false；任一有效價 → true', () => {
+  assert.equal(Agg.hasAnyPrice([]), false);
+  // trips 全缺（URL 有檔名但載入全失敗）→ 全部 missing、min=null
+  const urls = [
+    'api/trips/TPE-FUK_2026-08-15_2026-08-23.json',
+    'api/trips/TPE-FUK_2026-08-22_2026-08-30.json',
+  ];
+  const allMissing = Agg.aggregateWeekly(urls, [null, null]);
+  assert.equal(Agg.hasAnyPrice(allMissing), false);
+  // 全售罄週（有航班但皆無效價）→ false
+  const allSoldOut = Agg.aggregateWeekly(urls, [tripSoldOut, tripSoldOut]);
+  assert.equal(Agg.hasAnyPrice(allSoldOut), false);
+  // 任一週有有效價（含混合缺週）→ true
+  const mixed = Agg.aggregateWeekly(urls, [tripA, null]);
+  assert.equal(Agg.hasAnyPrice(mixed), true);
+});
+
 // ── F-02 / F-06 全域平均（不隨範圍漂移；排除 null 週）──
 const WEEKS40 = (() => {
   const ws = [];

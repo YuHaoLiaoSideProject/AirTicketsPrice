@@ -147,6 +147,7 @@ def run_tests(browser):
     tab_count = page.locator('#routeTabs button').count()
     check('E2E-01 航線 tab 有 4 個（含福岡/札幌）', tab_count == 4, f'got {tab_count}')
     check('E2E-02 折線繪出', page.locator('#chart path.price-line').count() == 1)
+    check('E2E-02 Summary 三卡可見（有資料）', not page.locator('#summary').evaluate('el => el.hidden'))
     # 回歸：狀態容器初始必須隱藏（CSS [hidden] 不可被 display 覆蓋）
     check('E2E-02b 初始狀態容器皆隱藏',
           page.locator('#errBox').evaluate('el => el.hidden && getComputedStyle(el).display === "none"') and
@@ -228,17 +229,61 @@ def run_tests(browser):
     p7b.locator('#routeTabs button[data-route="TPE-FUK"]').click()
     p7b.wait_for_selector('#emptyBox:not([hidden])', timeout=8000)
     check('E2E-07b 福岡空狀態顯示', p7b.locator('#emptyBox').is_visible())
-    check('E2E-07b 空狀態下圖表隱藏', p7b.locator('#chart').evaluate('el => el.hidden'))
-    check('E2E-07b 空狀態下 Summary 清空',
+    check('E2E-07b 空狀態下圖表隱藏', p7b.locator('#chart').evaluate(
+        'el => el.hasAttribute("hidden") && getComputedStyle(el).display === "none"'))
+    check('E2E-07b 空狀態下圖表內容已清空', p7b.locator('#chart').evaluate('el => el.innerHTML === ""'))
+    check('E2E-07b 空狀態下 Summary 隱藏', p7b.locator('#summary').evaluate('el => el.hidden'))
+    check('E2E-07b 空狀態下 Summary 三卡清空',
           p7b.locator('#sumAvg').inner_text() == '—' and
           p7b.locator('#sumMin').inner_text() == '—' and
           p7b.locator('#sumPeak').inner_text() == '—')
     p7b.locator('#routeTabs button[data-route="TPE-NRT"]').click()
     p7b.wait_for_selector('#chart path.price-line', timeout=8000)
-    check('E2E-07b 切回東京圖表恢復', not p7b.locator('#chart').evaluate('el => el.hidden') and
+    check('E2E-07b 切回東京圖表恢復', not p7b.locator('#chart').evaluate(
+        'el => el.hasAttribute("hidden")') and
+          p7b.locator('#chart').evaluate('el => getComputedStyle(el).display !== "none"') and
           p7b.locator('#emptyBox').evaluate('el => el.hidden'))
+    check('E2E-07b 切回東京 Summary 恢復可見', not p7b.locator('#summary').evaluate('el => el.hidden'))
     check('E2E-07b 無 console error', len(e7b) == 0, e7b[:2])
     p7b.close()
+
+    # E2E-07c 航線有 trip 檔但全部載入失敗（全缺週）→ 空狀態；切範圍後仍保持空狀態
+    # （回歸：此情境原本會渲染空網格圖表 =「沒資料但顯示圖表」，修正後必須顯示空狀態）
+    p7c, e7c = new_page(browser, viewport={'width': 1280, 'height': 900})
+    kix_urls = ['api/trips/TPE-KIX_2026-08-15_2026-08-23.json',
+                'api/trips/TPE-KIX_2026-08-22_2026-08-30.json',
+                'api/trips/TPE-KIX_2026-08-29_2026-09-06.json',
+                'api/trips/TPE-KIX_2026-09-05_2026-09-13.json',
+                'api/trips/TPE-KIX_2026-09-12_2026-09-20.json']
+    idx7c = mock_index(trips=MOCK_TRIP_URLS + kix_urls)
+
+    def handler7c(route):
+        url = route.request.url
+        if '/api/index.json' in url:
+            route.fulfill(status=200, content_type='application/json',
+                          body=json.dumps(idx7c, ensure_ascii=False))
+        elif '/api/trips/' in url and 'TPE-KIX' in url:
+            route.fulfill(status=404, body='not found')
+        else:
+            route.continue_()
+
+    p7c.route('**/api/**', handler7c)
+    p7c.goto(URL + '/web/')
+    wait_chart(p7c)  # 東京（真實 NRT 檔）正常顯示
+    p7c.locator('#routeTabs button[data-route="TPE-KIX"]').click()
+    p7c.wait_for_selector('#emptyBox:not([hidden])', timeout=8000)
+    check('E2E-07c trips 全缺 → 空狀態', p7c.locator('#emptyBox').is_visible())
+    check('E2E-07c 空狀態下圖表隱藏', p7c.locator('#chart').evaluate(
+        'el => el.hasAttribute("hidden") && getComputedStyle(el).display === "none"'))
+    check('E2E-07c 空狀態下 Summary 隱藏', p7c.locator('#summary').evaluate('el => el.hidden'))
+    # 切範圍後仍保持空狀態（回歸：不再復現空網格圖表）
+    p7c.locator('#rangeSeg button[data-range="6m"]').click()
+    p7c.wait_for_timeout(400)
+    check('E2E-07c 切範圍後仍空狀態且圖表隱藏',
+          p7c.locator('#emptyBox').is_visible() and
+          p7c.locator('#chart').evaluate('el => getComputedStyle(el).display === "none"'))
+    # 註：刻意 404 會產生 console error，屬預期，故不檢查
+    p7c.close()
 
     # E2E-17 鍵盤 focus tooltip
     page.locator('#chart circle.dot').first.focus()
@@ -366,6 +411,9 @@ def run_tests(browser):
     p12.wait_for_selector('#emptyBox:not([hidden])', timeout=8000)
     check('E2E-12 空狀態顯示', p12.locator('#emptyBox').is_visible())
     check('E2E-12 空狀態文案', '每週五更新' in p12.locator('#emptyBox').inner_text())
+    check('E2E-12 空狀態下圖表隱藏', p12.locator('#chart').evaluate(
+        'el => el.hasAttribute("hidden") && getComputedStyle(el).display === "none"'))
+    check('E2E-12 空狀態下 Summary 隱藏', p12.locator('#summary').evaluate('el => el.hidden'))
     p12.close()
 
     # E2E-09 缺資料週（mock 5 週，缺第 3 週 → gap-dot，兩側仍有連續點）

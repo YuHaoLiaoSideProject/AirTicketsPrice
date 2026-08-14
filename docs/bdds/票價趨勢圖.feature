@@ -123,6 +123,15 @@ Feature: 票價趨勢圖
     Given 專案尚無任何 trip 資料（全新專案）
     When 我開啟票價趨勢圖頁面
     Then 頁面顯示空狀態插圖與訊息「尚無價格資料，每週五更新」
+    And Summary 三卡隱藏
+
+  @error-handling @p1
+  Scenario: 航線所有週皆無有效價格顯示空狀態
+    Given 某航線的 trip 檔案皆不存在，或所有週皆無有效價格（全缺/全售罄）
+    When 我切換到該航線
+    Then 頁面顯示空狀態插圖與訊息「尚無價格資料，每週五更新」
+    And 圖表不顯示（不渲染空網格圖表）
+    And Summary 三卡隱藏
 
   @error-handling @p1
   Scenario: CORS 或網域來源問題

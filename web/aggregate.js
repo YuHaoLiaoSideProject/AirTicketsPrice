@@ -168,6 +168,16 @@
   }
 
   /**
+   * 是否有任何有效價格週（min 非 null）。
+   * 航線 trips 全缺或全部無有效價格 → false（前端顯示空狀態，不渲染空網格圖表）。
+   * @param {object[]} weeks - 全量週資料
+   * @returns {boolean}
+   */
+  function hasAnyPrice(weeks) {
+    return weeks.some(w => w.min !== null && w.min !== undefined);
+  }
+
+  /**
    * 範圍參數防呆：無效/負數 → 全部 40 週；>40 → 40 週。
    * @param {*} n
    * @returns {number}
@@ -279,6 +289,7 @@
     latestPrice,
     aggregateWeek,
     aggregateWeekly,
+    hasAnyPrice,
     globalAverage,
     diffPct,
     filterRange,
