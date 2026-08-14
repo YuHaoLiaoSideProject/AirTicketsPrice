@@ -30,6 +30,10 @@ AIRLINE_NAMES = {
 # 艙等優先順序（挑不到 eco 時的 fallback）
 CABIN_ORDER = ["eco", "ecoPremium", "business", "first"]
 
+# 星宇 API 錯誤代碼：01003 = 「所選日期或航班不適用」→ 該週無航班，視為正常空結果
+# （如 FUK/CTS 等航線部分週沒有航班，不應計為失敗）
+NO_FLIGHT_ERROR_CODES = {"01003"}
+
 
 # ---------------------------------------------------------------- 日期產生
 def gen_trip_dates(reference: date, num_weeks: int) -> list[tuple[str, str]]:
@@ -67,6 +71,18 @@ def build_payload(origin: str, dest: str, dep_date: str, ret_date: str) -> dict:
     }
 
 
+def _error_code(body: dict) -> str | None:
+    """從 API 錯誤 body 抽出錯誤代碼（message 可能是 dict 或 list）。"""
+    msg = body.get("message")
+    if isinstance(msg, dict):
+        return msg.get("code")
+    if isinstance(msg, list):
+        for m in msg:
+            if isinstance(m, dict) and m.get("code"):
+                return m["code"]
+    return None
+
+
 def query_flights(origin: str, dest: str, dep_date: str, ret_date: str) -> dict:
     """呼叫星宇 searchFlight API，帶重試。成功回傳 data dict，失敗拋例外。"""
     payload = build_payload(origin, dest, dep_date, ret_date)
@@ -84,6 +100,9 @@ def query_flights(origin: str, dest: str, dep_date: str, ret_date: str) -> dict:
             resp.raise_for_status()
             body = resp.json()
             if not body.get("success"):
+                if _error_code(body) in NO_FLIGHT_ERROR_CODES:
+                    # 該週沒有航班 → 不是錯誤，回傳空航班清單
+                    return {"flights": []}
                 raise RuntimeError(json.dumps(body.get("message"), ensure_ascii=False))
             return body["data"]
         except Exception as e:  # noqa: BLE001
@@ -243,6 +262,10 @@ def main() -> int:
     print(f"\n📦 寫入 {out_path}（本次 +{len(new_records)} 筆，累積 {len(records)} 筆）")
     if failed:
         print(f"⚠️  {failed}/{total} 個查詢失敗（已跳過，檔案仍為完整 JSON）", file=sys.stderr)
+        # 部分失敗但仍有新資料 → 不算致命錯誤，讓 workflow 繼續 build + commit
+        if new_records:
+            return 0
+        # 完全沒抓到任何新資料 → 中止，避免提交空資料
         return 1
     return 0
 
