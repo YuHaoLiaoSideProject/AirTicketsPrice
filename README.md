@@ -1,0 +1,100 @@
+# 星宇航空機票價格爬蟲 ✈️
+
+每週自動抓取**星宇航空（STARLUX, JX）**指定航線的來回票價（去程週六 → 回程下週日），
+輸出 JSON 歷史檔案，供價格趨勢追蹤分析。
+
+## 🏗️ 架構
+
+```
+GitHub Actions（每週五 09:00 UTC+8 自動執行）
+    │
+    ▼
+fetch_prices.py
+    ├─ POST ecapi.starlux-airlines.com/searchFlight/v2/flights/search
+    │   （星宇官方訂票 API，免費、免註冊、免 token）
+    ├─ 解析每個航班的來回總價（TWD）
+    └─ 寫入 data/YYYYMMDD.json（每天一個檔，累積歷史）
+```
+
+## 📁 專案結構
+
+```
+├── fetch_prices.py              # 主程式
+├── config.py                    # 設定（航線、週數、艙等）
+├── requirements.txt
+├── .github/workflows/weekly-crawl.yml   # 每週排程
+├── data/                        # 歷史價格 JSON（自動產生）
+└── docs/tech-decision-機票價格爬蟲-2026-08-14.md  # 決策文件
+```
+
+## 🚀 快速開始
+
+### 本機測試
+
+```bash
+pip install -r requirements.txt
+python fetch_prices.py --date 2026-08-14   # --date 指定參考日期（測試）
+python fetch_prices.py                       # 用今天日期
+```
+
+輸出範例 `data/20260814.json`：
+
+```json
+[
+  {
+    "route_id": "TPE-NRT",
+    "outbound_date": "2026-08-15",
+    "return_date": "2026-08-23",
+    "outbound_flight_no": "JX 804",
+    "outbound_departure_time": "15:00",
+    "outbound_arrival_time": "19:25",
+    "airline_code": "JX",
+    "airline_name": "星宇航空",
+    "price_total": 26488,
+    "currency": "TWD",
+    "status": "Available",
+    "data_completeness": "Complete",
+    "scraped_at": "2026-08-14T09:30:00.000Z",
+    "source": "starlux_official_api"
+  }
+]
+```
+
+### 部署到 GitHub Actions（自動每週抓）
+
+1. 建立 **public** repo 並推上去
+2. 完成！workflow 已設定每週五 09:00 (UTC+8) 自動執行，資料會自動 commit 回 `data/`
+3. 也可以到 Actions 頁面手動觸發（Run workflow）
+
+> 不需要任何 Secrets — API 免費且無需認證。
+
+## ⚙️ 設定（config.py）
+
+| 參數 | 說明 | 預設 |
+|------|------|------|
+| `ROUTES` | 追蹤的航線 | TPE-NRT（東京）、TPE-KIX（大阪） |
+| `NUM_WEEKS` | 查詢未來幾週 | 10 |
+| `RETURN_AFTER_DAYS` | 回程 = 去程 + 天數（下週日） | 8 |
+| `CABIN` | 艙等 | eco |
+
+**可用航線**（星宇直飛）：TPE-NRT 東京 / TPE-KIX 大阪 / TPE-FUK 福岡 / TPE-CTS 札幌 / TPE-OKA 沖繩 ...
+
+想加航線就在 `ROUTES` 加一行：
+
+```python
+{"route_id": "TPE-FUK", "origin": "TPE", "destination": "FUK"},  # 福岡
+```
+
+## 📊 資料說明
+
+- `price_total` = 該航班 **來回總價**（含稅，TWD），來自星宇官方搜尋結果頁同款價格
+- 每個航線/日期組合會存**所有航班**（如 JX 800 / JX 802 / JX 804）
+- 重複執行會去重合併（同 key = route + 日期 + 班號），不會重複累積
+- 查詢失敗的組合會跳過並回報，不影響已成功的資料
+
+## 📈 之後可擴充
+
+- [ ] 趨勢圖視覺化（把 data/*.json 畫成折線圖）
+- [ ] 擴到 40 週
+- [ ] 商務艙追蹤
+- [ ] 更多航線
