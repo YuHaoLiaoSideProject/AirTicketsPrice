@@ -215,10 +215,10 @@
   /**
    * 過舊判定：generated_at 距今超過 STALE_DAYS 天；恰等於 → false。
    * @param {string} generatedAt - ISO 字串
-   * @param {number} now - 目前時間戳（預設 Date.now()）
+   * @param {number} [now] - 目前時間戳（預設 Date.now()）
    * @returns {boolean}
    */
-  function isStale(generatedAt, now) {
+  function isStale(generatedAt, now = Date.now()) {
     const t = Date.parse(generatedAt);
     if (Number.isNaN(t)) return false;
     const days = (now - t) / 86400000;

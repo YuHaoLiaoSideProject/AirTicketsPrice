@@ -178,6 +178,13 @@ test('F-10 isStale 邊界：>14 天 true、恰 14 天 false', () => {
   assert.equal(Agg.isStale('2026-08-28T00:00:00Z', now), false); // 1 天
 });
 
+test('F-10b isStale 不傳 now 時預設 Date.now()（真實呼叫路徑，防 NaN 回 false）', () => {
+  const past = new Date(Date.now() - 15 * 86400000).toISOString();
+  assert.equal(Agg.isStale(past), true);
+  const recent = new Date(Date.now() - 1 * 86400000).toISOString();
+  assert.equal(Agg.isStale(recent), false);
+});
+
 // ── F-12 網域來源判定（純邏輯部分）──
 test('F-12 originAllowed 放行 file://、localhost、允許清單；拒絕其他', () => {
   assert.equal(Agg.originAllowed(''), true);            // file:// → origin ''

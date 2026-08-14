@@ -147,6 +147,11 @@ def run_tests(browser):
     tab_count = page.locator('#routeTabs button').count()
     check('E2E-01 航線 tab 有 4 個（含福岡/札幌）', tab_count == 4, f'got {tab_count}')
     check('E2E-02 折線繪出', page.locator('#chart path.price-line').count() == 1)
+    # 回歸：狀態容器初始必須隱藏（CSS [hidden] 不可被 display 覆蓋）
+    check('E2E-02b 初始狀態容器皆隱藏',
+          page.locator('#errBox').evaluate('el => el.hidden && getComputedStyle(el).display === "none"') and
+          page.locator('#emptyBox').evaluate('el => el.hidden && getComputedStyle(el).display === "none"') and
+          page.locator('#staleBar').evaluate('el => el.hidden && getComputedStyle(el).display === "none"'))
     check('E2E-02 平均虛線繪出', page.locator('#chart line.avg-line').count() == 1)
     check('E2E-03 最低價標記', page.locator('#chart circle.dot.min').count() == 1)
     check('E2E-03 圖例 4 項', page.locator('.legend-row .lg').count() == 4)

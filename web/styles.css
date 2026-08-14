@@ -25,6 +25,8 @@
 }
 
 * { box-sizing: border-box; }
+/* 防止作者樣式（display:flex 等）覆蓋 [hidden] 屬性的 UA 樣式（display:none） */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
