@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI/UX 設計規格 — 票價趨勢圖（單頁完整規格）</title>
+<style>
+
+/* ════════════════════════════════════════════════════════════
+   設計 Token（對應實作 CSS 變數）
+   ════════════════════════════════════════════════════════════ */
+:root {
+  --accent: #1a73e8; --accent-hover: #1557b0; --accent-light: rgba(26,115,232,0.12);
+  --success: #188038; --success-light: #e6f4ea; --success-border: #a8dab5;
+  --danger: #c5221f; --danger-light: #fce8e6; --danger-border: #f5c6c2;
+  --warning: #e37400; --warning-light: #fff4e5;
+  --radius: 10px; --radius-sm: 6px; --transition: 0.2s ease;
+  --h: 36px; --h-mobile: 44px; --fs: 0.875rem;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+[data-theme="light"] {
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #f6f7f9; --surface-3: #eef0f3;
+  --border: #e3e6ea; --text: #374151; --muted: #9ca3af;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08); --shadow-lg: 0 12px 32px rgba(0,0,0,0.16);
+  --frame: #eef0f3;
+}
+[data-theme="dark"] {
+  --bg: #11191f; --surface: #181e25; --surface-2: #1e2530; --surface-3: #232c38;
+  --border: #262e38; --text: #c7c9ce; --muted: #7d8590;
+  --shadow: 0 2px 16px rgba(0,0,0,0.45); --shadow-lg: 0 12px 36px rgba(0,0,0,0.6);
+  --frame: #0d1318;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  background: var(--bg); color: var(--text); transition: background var(--transition), color var(--transition);
+  padding: 2rem 1.25rem 4rem;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+.topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem; }
+h1 { font-size: 1.35rem; margin: 0; }
+.sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+.controls { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.segmented { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
+.segmented button { border: none; background: none; color: var(--muted); font-size: 0.85rem; padding: 0.45rem 0.9rem; border-radius: 7px; cursor: pointer; transition: all var(--transition); font-weight: 500; }
+.segmented button:hover { color: var(--text); }
+.segmented button.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+
+.frame { background: var(--frame); border: 1px solid var(--border); border-radius: 14px; padding: 1.6rem 1.5rem 1.8rem; margin-bottom: 1.5rem; }
+.frame h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
+.frame .fsub { color: var(--muted); font-size: 0.82rem; margin: 0 0 1rem; line-height: 1.6; }
+.browser-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 1rem; }
+.bdot { width: 11px; height: 11px; border-radius: 50%; }
+.bdot:nth-child(1){ background:#f87171 } .bdot:nth-child(2){ background:#fbbf24 } .bdot:nth-child(3){ background:#34d399 }
+.browser-url { flex: 1; max-width: 460px; margin-left: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.8rem; font-size: 0.75rem; color: var(--muted); }
+.elem-count { font-size: 0.72rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 0.2rem 0.7rem; white-space: nowrap; }
+.elem-count b { color: var(--accent); }
+
+.app-page { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); transition: background var(--transition); overflow: hidden; }
+.app-page.is-mobile { max-width: 390px; margin: 0 auto; }
+
+/* ───────────── 票價趨勢頁面元件 ───────────── */
+.ph { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.ph h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; }
+.ph-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.25rem; line-height: 1.5; }
+.ico { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+.badge-upd { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--success); background: var(--success-light); border: 1px solid var(--success-border); border-radius: 20px; padding: 0.3rem 0.7rem; white-space: nowrap; }
+.badge-upd .dotg { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+.badge-stale { color: var(--warning); background: var(--warning-light); border-color: rgba(227,116,0,0.35); }
+.badge-stale .dotg { background: var(--warning); }
+
+.route-tabs { display: flex; gap: 0.35rem; padding: 0.75rem 1.25rem 0; border-bottom: 1px solid var(--border); }
+.rtab { display: inline-flex; align-items: center; gap: 0.45rem; height: var(--h); padding: 0 1.05rem; border: 1px solid transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: none; color: var(--muted); font-size: var(--fs); cursor: pointer; font-weight: 500; transition: all var(--transition); }
+.rtab:hover { color: var(--text); background: var(--surface-2); }
+.rtab:focus-visible { outline: 3px solid var(--accent-light); outline-offset: -2px; border-radius: var(--radius-sm); }
+.rtab.active { background: var(--surface); border-color: var(--border); border-bottom-color: var(--surface); color: var(--accent); font-weight: 700; box-shadow: inset 0 2px 0 var(--accent); }
+.rtab .code { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.rtab.active .code { color: var(--accent); }
+
+.chart-toolbar { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.tb-label { font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+select.sel { height: var(--h); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--fs); padding: 0 0.5rem; cursor: pointer; }
+select.sel:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); outline: none; }
+.seg-chart { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
+.seg-chart button { border: none; background: none; color: var(--muted); font-size: 0.75rem; padding: 0.3rem 0.65rem; border-radius: 6px; cursor: pointer; transition: all var(--transition); }
+.seg-chart button:hover { color: var(--text); }
+.seg-chart button.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); font-weight: 600; }
+.legend-row { display: flex; align-items: center; gap: 0.9rem; margin-left: auto; flex-wrap: wrap; }
+.lg { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; color: var(--muted); }
+.lg .sw { width: 16px; height: 3px; border-radius: 2px; background: var(--accent); flex-shrink: 0; }
+.lg .sw.avg { background: none; border-top: 2px dashed var(--warning); height: 0; }
+.lg .sw.min { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.lg .sw.pk { width: 12px; height: 12px; border-radius: 3px; background: rgba(197,34,31,0.15); border: 1px solid rgba(197,34,31,0.35); }
+
+.chart-wrap { position: relative; padding: 0.9rem 1.25rem 0.6rem; }
+.chart-title { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.35rem; display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.chart-title b { color: var(--text); }
+.chart-wrap svg { width: 100%; height: auto; display: block; }
+
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); padding: 0.55rem 0.75rem; font-size: 0.75rem; line-height: 1.6; opacity: 0; transition: opacity .15s ease; z-index: 5; min-width: 168px; }
+.tip.show { opacity: 1; }
+.tip .t-date { color: var(--muted); font-size: 0.7rem; }
+.tip .t-price { font-size: 0.95rem; font-weight: 700; color: var(--accent); margin: 0.1rem 0; }
+.tip .t-low { color: var(--success); font-weight: 600; }
+.tip .t-high { color: var(--danger); font-weight: 600; }
+.tip .t-fl { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+.tip .t-none { color: var(--muted); }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; padding: 0.6rem 1.25rem 1.1rem; }
+.scard { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.65rem 0.85rem; }
+.scard .s-k { font-size: 0.68rem; color: var(--muted); display: flex; align-items: center; gap: 0.3rem; }
+.scard .s-k .ico { width: 13px; height: 13px; }
+.scard .s-v { font-size: 1.02rem; font-weight: 700; margin-top: 0.15rem; line-height: 1.35; }
+.scard .s-s { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+.scard.cheap .s-v { color: var(--success); }
+.scard.peak .s-v { color: var(--danger); }
+.scard.avg .s-v { color: var(--warning); }
+
+/* SVG 圖表元素 */
+.grid-major { stroke: var(--border); stroke-width: 1; }
+.tick-label { fill: var(--muted); font-size: 11px; font-family: var(--mono); }
+.peak-rect { fill: rgba(197,34,31,0.07); stroke: rgba(197,34,31,0.30); stroke-width: 1; }
+.peak-label { fill: var(--danger); font-size: 11px; font-weight: 700; }
+.price-line { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.avg-line { fill: none; stroke: var(--warning); stroke-width: 1.6; stroke-dasharray: 6 4; }
+.avg-label { fill: var(--warning); font-size: 11px; font-weight: 700; }
+.dot { fill: var(--accent); cursor: pointer; transition: r 0.15s ease; }
+.dot:hover, .dot:focus { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5; outline: none; }
+.dot.min { fill: var(--danger); stroke: var(--surface); stroke-width: 2; }
+.min-label { fill: var(--danger); font-size: 11.5px; font-weight: 700; }
+.gap-dot { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.axis-caption { fill: var(--muted); font-size: 10px; }
+
+/* 狀態 Demo 元件 */
+.demo-cell { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.skeleton { width: 150px; height: 48px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; position: relative; overflow: hidden; flex-shrink: 0; }
+.skeleton::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(128,128,128,0.18), transparent); animation: shim 1.2s infinite; }
+@keyframes shim { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.errbox { display: flex; align-items: center; gap: 0.6rem; font-size: 0.8rem; color: var(--danger); background: var(--danger-light); border: 1px solid var(--danger-border); border-radius: 8px; padding: 0.6rem 0.9rem; }
+.errbox .ico { width: 16px; height: 16px; color: var(--danger); }
+.alertbar { display: flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; color: var(--warning); background: var(--warning-light); border: 1px solid rgba(227,116,0,0.35); border-radius: 8px; padding: 0.5rem 0.8rem; }
+.alertbar .ico { width: 15px; height: 15px; color: var(--warning); }
+.emptybox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem; color: var(--muted); font-size: 0.8rem; padding: 1.3rem; border: 1px dashed var(--border); border-radius: 8px; text-align: center; }
+.spin-ico { width: 15px; height: 15px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: rot 0.8s linear infinite; display: inline-block; }
+@keyframes rot { to { transform: rotate(360deg); } }
+
+/* ── 元件規格（anatomy）── */
+.anatomy { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.1rem; }
+@media (max-width: 760px) { .anatomy { grid-template-columns: 1fr; } }
+.anat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem 1.1rem; }
+.anat-card h4 { margin: 0 0 0.8rem; font-size: 0.92rem; display: flex; align-items: center; gap: 0.4rem; }
+.anat-card h4 .tag { font-size: 0.62rem; font-weight: 700; background: var(--accent-light); color: var(--accent); border-radius: 20px; padding: 0.12rem 0.5rem; }
+.anat-stage { background: var(--frame); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1rem; margin-bottom: 0.85rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.anat-stage.col { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+.anat-dims { font-size: 0.74rem; color: var(--muted); line-height: 1.9; }
+.anat-dims b { color: var(--accent); font-family: var(--mono); }
+.tip.demo { position: static; opacity: 1; box-shadow: var(--shadow); min-width: 190px; }
+.mini-svg { width: 100%; height: auto; display: block; }
+
+/* 狀態矩陣表 */
+.states { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem; }
+.states th, .states td { border: 1px solid var(--border); padding: 0.55rem 0.75rem; text-align: left; vertical-align: top; }
+.states th { background: var(--surface-2); font-size: 0.74rem; color: var(--muted); font-weight: 700; }
+.states td:first-child { white-space: nowrap; font-weight: 600; }
+.states code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.35rem; font-size: 0.72rem; font-family: var(--mono); }
+
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.5rem 1.5rem; margin-top: 1rem; }
+.anno { display: flex; gap: 0.55rem; font-size: 0.8rem; color: var(--muted); align-items: flex-start; line-height: 1.55; }
+.anno .num { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+.anno b { color: var(--text); }
+
+.note { font-size: 0.78rem; color: var(--muted); margin-top: 1rem; line-height: 1.7; background: var(--surface); border: 1px dashed var(--border); border-radius: 10px; padding: 0.6rem 0.9rem; }
+.note b { color: var(--accent); }
+.note ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+
+.demo-hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.7rem; line-height: 1.6; }
+.demo-hint b { color: var(--accent); }
+
+/* Token 卡片 */
+.tokens { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+.tcard { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 0.95rem; }
+.tcard .tk { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.4px; }
+.tcard .tv { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-top: 0.2rem; }
+.tcard .td { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.5; }
+.tcard .tv.accent { color: var(--accent); }
+
+.footnote { margin-top: 2rem; font-size: 0.72rem; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 0.75rem; line-height: 1.7; }
+
+/* mobile 切換 */
+.frame.mobile-frame { display: none; }
+body.view-mobile .frame.mobile-frame { display: block; }
+body.view-mobile .frame.desktop-frame { display: none; }
+.mobile-frame .app-page { max-width: 390px; margin: 0 auto; }
+body.view-mobile .route-tabs { flex-direction: column; align-items: stretch; padding-bottom: 0.5rem; }
+body.view-mobile .rtab { height: var(--h-mobile); justify-content: center; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+body.view-mobile .rtab.active { box-shadow: none; border-color: var(--accent); border-bottom-color: var(--accent); }
+body.view-mobile .chart-toolbar { flex-direction: column; align-items: stretch; }
+body.view-mobile select.sel { height: var(--h-mobile); width: 100%; }
+body.view-mobile .seg-chart { justify-content: stretch; }
+body.view-mobile .seg-chart button { flex: 1; padding: 0.55rem 0.5rem; }
+body.view-mobile .legend-row { margin-left: 0; justify-content: space-between; }
+body.view-mobile .chart-wrap { overflow-x: auto; }
+body.view-mobile .chart-wrap svg { min-width: 640px; }
+body.view-mobile .summary { grid-template-columns: 1fr; }
+body.view-mobile .badge-upd { align-self: flex-start; }
+body.view-mobile .tip { position: fixed; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <h1>票價趨勢圖 — 完整規格</h1>
+      <div class="sub">星宇航空來回票價 40 週比較 · 資料來源 api/trips/*.json（真實資料） · 對照 Interaction Flow：docs/interaction-flows/票價趨勢圖.md</div>
+    </div>
+    <div class="controls">
+      <div class="segmented" id="devSwitch">
+        <button data-dev="desktop" class="active">🖥 Desktop</button>
+        <button data-dev="mobile">📱 Mobile</button>
+      </div>
+      <button class="segmented" id="themeToggle" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;">🌙 切換深色</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 1. 設計 Token ══════════ -->
+  <div class="frame">
+    <h2>1️⃣ 設計 Token</h2>
+    <p class="fsub">全站共用基礎，實作時對應 CSS 變數。</p>
+    <div class="tokens">
+      <div class="tcard"><div class="tk">控制高度</div><div class="tv accent">36 / 44px</div><div class="td">desktop 36px · mobile ≤767px 44px</div></div>
+      <div class="tcard"><div class="tk">字級</div><div class="tv">14 / 13 / 12px</div><div class="td">工具列 / 圖表標籤 / 圖例 meta</div></div>
+      <div class="tcard"><div class="tk">圓角</div><div class="tv">6 / 10px</div><div class="td">控制元件 6px · 卡片 10px</div></div>
+      <div class="tcard"><div class="tk">間距</div><div class="tv">8 / 16px</div><div class="td">群組內 8px · 群組間 16px</div></div>
+      <div class="tcard"><div class="tk">動畫</div><div class="tv">150–200ms</div><div class="td">tooltip 淡入、tab 反白；尊重 reduced-motion</div></div>
+      <div class="tcard"><div class="tk">Focus</div><div class="tv">3px ring</div><div class="td">accent 光圈（控制元件與資料點）</div></div>
+      <div class="tcard"><div class="tk">語意色</div><div class="tv">4 色</div><div class="td">accent 主線 / warning 平均線 / danger 最低價與旺季 / success 便宜標示</div></div>
+      <div class="tcard"><div class="tk">圖表 Y 軸</div><div class="tv">12K–42K</div><div class="td">兩航線統一範圍，可比性一致</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════ 2. 完整畫面（Desktop） ══════════ -->
+  <div class="frame desktop-frame">
+    <h2>2️⃣ 完整畫面 — 票價趨勢圖</h2>
+    <p class="fsub">單頁儀表板：航線 tab + 航班／日期範圍控制 + 真實資料趨勢圖。下方可互動操作。</p>
+    <div class="browser-bar">
+      <span class="bdot"></span><span class="bdot"></span><span class="bdot"></span>
+      <span class="browser-url">https://yuhaoliaosideproject.github.io/AirTicketsPrice/ · 票價趨勢</span>
+      <span class="elem-count">互動：<b>切航線 tab · 選航班 · 選日期範圍 · hover 資料點</b></span>
+    </div>
+    <div class="app-page">
+      <header class="ph">
+        <div>
+          <h3>
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+            票價趨勢
+          </h3>
+          <div class="ph-sub">星宇航空來回票價（經濟艙 · 去程週六 → 回程下週日）</div>
+        </div>
+        <span class="badge-upd"><span class="dotg"></span>資料更新 2026-08-14 · 每週五更新</span>
+      </header>
+
+      <nav class="route-tabs" id="routeTabs" role="tablist" aria-label="選擇航線">
+        <button class="rtab active" role="tab" aria-selected="true" data-route="TPE-NRT">東京 <span class="code">TPE-NRT</span></button>
+        <button class="rtab" role="tab" aria-selected="false" data-route="TPE-KIX">大阪 <span class="code">TPE-KIX</span></button>
+      </nav>
+
+      <div class="chart-toolbar">
+        <label class="tb-label" for="flightSel">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="width:14px;height:14px"><path d="M2 12h20M12 2v20"/></svg>
+          航班
+        </label>
+        <select class="sel" id="flightSel" aria-label="選擇航班"></select>
+        <div class="seg-chart" id="rangeSeg" role="group" aria-label="日期範圍">
+          <button data-range="12" class="active" aria-pressed="true">3 個月</button>
+          <button data-range="24" aria-pressed="false">6 個月</button>
+          <button data-range="40" aria-pressed="false">全部 40 週</button>
+        </div>
+        <div class="legend-row" aria-label="圖例">
+          <span class="lg"><span class="sw"></span>每週最低價</span>
+          <span class="lg"><span class="sw avg"></span>平均價</span>
+          <span class="lg"><span class="sw min"></span>最便宜</span>
+          <span class="lg"><span class="sw pk"></span>旺季</span>
+        </div>
+      </div>
+
+      <div class="chart-wrap" id="chartWrap">
+        <div class="chart-title" id="chartTitle"></div>
+        <svg id="chart" viewBox="0 0 900 330" role="img" aria-label="票價趨勢圖"></svg>
+        <div class="tip" id="tip" role="tooltip"></div>
+      </div>
+
+      <div class="summary">
+        <div class="scard cheap">
+          <div class="s-k">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            最便宜出發週
+          </div>
+          <div class="s-v" id="sumMin">—</div>
+          <div class="s-s" id="sumMinS"></div>
+        </div>
+        <div class="scard avg">
+          <div class="s-k">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20h16M6 16l4-6 4 3 4-7"/></svg>
+            全域平均價
+          </div>
+          <div class="s-v" id="sumAvg">—</div>
+          <div class="s-s">比較基準（不受日期範圍篩選影響）</div>
+        </div>
+        <div class="scard peak">
+          <div class="s-k">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            旺季提醒
+          </div>
+          <div class="s-v" id="sumPeak">—</div>
+          <div class="s-s" id="sumPeakS"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="anno"><span class="num">1</span><span><b>航線 tab</b>：東京／大阪切換，切換保留航班與日期範圍設定（Interaction Flow 步驟 6）</span></div>
+      <div class="anno"><span class="num">2</span><span><b>航班選擇</b>：預設「全部＝每週最低價」；選單一航班畫該航班 40 週線，缺資料週顯示斷點</span></div>
+      <div class="anno"><span class="num">3</span><span><b>日期範圍</b>：3 個月(12 週)／6 個月(24 週)／全部(40 週)；最低價標記隨範圍重算，平均線維持全域</span></div>
+      <div class="anno"><span class="num">4</span><span><b>旺季區塊</b>：農曆過年（1/30–2/6）與櫻花季（3/27–4/3）紅色底色＋標籤</span></div>
+      <div class="anno"><span class="num">5</span><span><b>Summary 卡</b>：最便宜週／全域平均／旺季高峰，一眼完成「哪週最便宜」的決策</span></div>
+    </div>
+
+    <!-- 元件解剖 -->
+    <div class="anatomy">
+      <div class="anat-card">
+        <h4>航線 Tab <span class="tag">Pill</span></h4>
+        <div class="anat-stage">
+          <button class="rtab active" style="border:1px solid var(--border);border-bottom-color:var(--surface)">東京 <span class="code">TPE-NRT</span></button>
+          <button class="rtab">大阪 <span class="code">TPE-KIX</span></button>
+        </div>
+        <div class="anat-dims">
+          高度 <b>36px</b> · 圓角上 <b>6px</b>（連接下方邊框）· active 反白 + 上緣 <b>2px accent 條</b> · hover 底色 surface-2 · 狀態以 <code>aria-selected</code> 同步
+        </div>
+      </div>
+      <div class="anat-card">
+        <h4>資料點 Tooltip <span class="tag">Hover/Focus</span></h4>
+        <div class="anat-stage col">
+          <div class="tip demo">
+            <div class="t-date">去程 09/19（週六）· 回程 09/27</div>
+            <div class="t-price">NT$14,139</div>
+            <div class="t-low">比平均便宜 27%</div>
+            <div class="t-fl">航班 JX 804</div>
+          </div>
+        </div>
+        <div class="anat-dims">
+          四行結構：<b>日期</b>（muted 12px）→ <b>價格</b>（accent 14px bold）→ <b>差幅</b>（便宜綠 / 貴紅）→ <b>航班</b>（mono）· 移開即消失 · 資料點可 Tab 聚焦，focus 同 tooltip（鍵盤可讀）
+        </div>
+      </div>
+      <div class="anat-card">
+        <h4>旺季區塊 &amp; 最低價標記 <span class="tag">SVG</span></h4>
+        <div class="anat-stage">
+          <svg class="mini-svg" viewBox="0 0 300 110" aria-hidden="true">
+            <rect x="40" y="10" width="70" height="86" fill="rgba(197,34,31,0.10)" stroke="rgba(197,34,31,0.35)" rx="4"/>
+            <text x="46" y="24" font-size="11" font-weight="700" fill="var(--danger)">農曆過年</text>
+            <line x1="10" y1="62" x2="290" y2="62" stroke="var(--warning)" stroke-width="1.6" stroke-dasharray="6 4"/>
+            <path d="M10 78 L60 80 L120 52 L180 50 L240 30 L290 34" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="120" cy="52" r="6" fill="var(--danger)" stroke="#fff" stroke-width="2"/>
+            <text x="120" y="46" font-size="10.5" font-weight="700" fill="var(--danger)" text-anchor="middle">最便宜 NT$14,139</text>
+          </svg>
+        </div>
+        <div class="anat-dims">
+          旺季 = <b>淡紅底 + 標籤</b>（不只靠顏色，有文字）；最低價 = <b>紅點 r7 + 金額標籤</b>（隨可見範圍重算）
+        </div>
+      </div>
+      <div class="anat-card">
+        <h4>更新時間 Badge <span class="tag">Status</span></h4>
+        <div class="anat-stage">
+          <span class="badge-upd"><span class="dotg"></span>資料更新 2026-08-14 · 每週五更新</span>
+          <span class="badge-upd badge-stale"><span class="dotg"></span>資料可能過時（8/01）</span>
+        </div>
+        <div class="anat-dims">
+          綠點 <b>7px</b> · 圓角 <b>20px</b> · 正常綠底／過舊(&gt;14 天)黃底警示 · 資料新鮮度來自 <code>index.json → generated_at</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- 狀態矩陣 -->
+    <table class="states">
+      <tr><th style="width:150px;">狀態</th><th>視覺</th><th>互動</th></tr>
+      <tr>
+        <td>一般（idle）</td>
+        <td>折線（accent）+ 平均虛線 + 最低價紅點 + 旺季底色 + Summary 三卡</td>
+        <td>hover 資料點顯示 tooltip；圖表無需滾動</td>
+      </tr>
+      <tr>
+        <td>Hover / Focus</td>
+        <td>資料點放大（外圈白色描邊）+ tooltip 出現</td>
+        <td>滑鼠 hover；鍵盤 Tab 聚焦資料點（circle tabindex=0）同樣顯示 tooltip</td>
+      </tr>
+      <tr>
+        <td>載入中</td>
+        <td><span class="demo-cell"><span class="skeleton"></span><span class="spin-ico"></span></span></td>
+        <td>工具列 disabled，圖表區骨架＋spinner</td>
+      </tr>
+      <tr>
+        <td>空資料</td>
+        <td><span class="emptybox" style="padding:0.8rem 1rem">📦 尚無價格資料<br>每週五自動更新</span></td>
+        <td>無操作；資料出現後自動顯示</td>
+      </tr>
+      <tr>
+        <td>載入失敗</td>
+        <td><span class="errbox"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>資料載入失敗，請檢查網路或改用 Pages 網址</span></td>
+        <td>重試按鈕重新 fetch；連續失敗顯示錯誤代碼</td>
+      </tr>
+      <tr>
+        <td>缺資料週</td>
+        <td>折線於該週斷開（斷點），hover 顯示「本週無資料」</td>
+        <td>不需操作；下週爬蟲補上後自動填補</td>
+      </tr>
+      <tr>
+        <td>售罄週</td>
+        <td>X 軸該週下方標「售罄」灰字，折線斷開</td>
+        <td>不需操作；hover 顯示「本週已售罄」</td>
+      </tr>
+      <tr>
+        <td>資料過舊</td>
+        <td><span class="alertbar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>資料可能過時，上次更新：2026-08-01（超過 14 天）</span></td>
+        <td>不需操作；等待下週爬蟲執行</td>
+      </tr>
+    </table>
+    <div class="note"><b>無障礙：</b>
+      <ul>
+        <li>資訊不單靠顏色：旺季有文字標籤、tooltip 有差幅數字、圖例有文字（WCAG 1.4.1）</li>
+        <li>資料點可鍵盤聚焦讀取 tooltip；tab / segmented 以 <code>aria-selected</code>、<code>aria-pressed</code> 同步（WCAG 4.1.2）</li>
+        <li>Mobile 觸控目標 ≥ 44px（WCAG 2.5.5）；focus ring 3px accent（WCAG 2.4.7）</li>
+        <li>動畫僅 tooltip 淡入與骨架，<code>prefers-reduced-motion</code> 下全停</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ══════════ 3. Mobile ══════════ -->
+  <div class="frame mobile-frame">
+    <h2>3️⃣ Mobile（≤767px）</h2>
+    <p class="fsub">工具列垂直堆疊、控制元件 44px、圖表橫向捲動保持可讀。</p>
+    <div class="app-page is-mobile">
+      <header class="ph">
+        <div>
+          <h3 style="font-size:0.95rem">票價趨勢</h3>
+          <div class="ph-sub">星宇航空來回票價 · 經濟艙</div>
+        </div>
+        <span class="badge-upd"><span class="dotg"></span>更新 2026-08-14</span>
+      </header>
+      <nav class="route-tabs" role="tablist" aria-label="選擇航線">
+        <button class="rtab active" role="tab" aria-selected="true" data-route="TPE-NRT">東京 <span class="code">TPE-NRT</span></button>
+        <button class="rtab" role="tab" aria-selected="false" data-route="TPE-KIX">大阪 <span class="code">TPE-KIX</span></button>
+      </nav>
+      <div class="chart-toolbar">
+        <select class="sel" aria-label="選擇航班">
+          <option>全部（每週最低價）</option>
+          <option>航班 JX 800</option>
+          <option>航班 JX 802</option>
+          <option>航班 JX 804</option>
+        </select>
+        <div class="seg-chart" role="group" aria-label="日期範圍">
+          <button class="active">3 個月</button>
+          <button>6 個月</button>
+          <button>全部</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 900 330" role="img" aria-label="票價趨勢圖（可橫向捲動）" style="min-width:640px">
+          <g>
+            <line x1="60" y1="52" x2="886" y2="52" stroke="var(--border)"/>
+            <line x1="60" y1="119" x2="886" y2="119" stroke="var(--border)"/>
+            <line x1="60" y1="186" x2="886" y2="186" stroke="var(--border)"/>
+            <line x1="60" y1="253" x2="886" y2="253" stroke="var(--border)"/>
+            <text x="52" y="56" class="tick-label" text-anchor="end">42K</text>
+            <text x="52" y="123" class="tick-label" text-anchor="end">36K</text>
+            <text x="52" y="190" class="tick-label" text-anchor="end">30K</text>
+            <text x="52" y="257" class="tick-label" text-anchor="end">24K</text>
+            <rect x="285" y="22" width="150" height="278" class="peak-rect" rx="4"/>
+            <text x="291" y="37" class="peak-label">農曆過年</text>
+            <rect x="395" y="22" width="150" height="278" class="peak-rect" rx="4"/>
+            <text x="401" y="37" class="peak-label">櫻花季</text>
+            <line x1="60" y1="150" x2="886" y2="150" class="avg-line"/>
+            <path d="M60 276 L145 196 L230 70 L315 88 L400 96 L485 70 L570 128 L655 60 L740 122 L825 60 L886 64" class="price-line"/>
+            <path d="M285 250 L330 150 L375 250 L420 270 L465 270 L510 270 L555 300" class="price-line" opacity="0.5"/>
+            <text x="60" y="140" class="avg-label">平均 NT$19,480</text>
+            <circle cx="230" cy="70" r="7" class="dot min"/>
+            <text x="230" y="54" class="min-label" text-anchor="middle">最便宜 NT$14,139</text>
+            <text x="450" y="318" class="tick-label" text-anchor="middle">← 橫向捲動查看完整 40 週 →</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <p class="note"><b>Mobile 規範：</b>觸控目標一律 <b>44px</b>（WCAG 2.5.5）；工具列單欄堆疊；圖表 min-width 640px 橫向捲動，避免 40 點擠壓失真；tooltip 改 fixed 定位不溢出螢幕。</p>
+  </div>
+
+  <!-- ══════════ 4. 規格摘要 ══════════ -->
+  <div class="frame">
+    <h2>4️⃣ 規格摘要 — CSS 變數對應</h2>
+    <p class="fsub">實作時直接套用下列變數與結構（圖表可選 Chart.js / ECharts，語意色對應不變）。</p>
+    <table class="states">
+      <tr><th style="width:210px;">項目</th><th>值</th><th>對應</th></tr>
+      <tr><td>每週最低價線</td><td>2.2px 圓角折線</td><td><code>--accent</code>（#1a73e8）</td></tr>
+      <tr><td>全域平均線</td><td>1.6px 虛線 + 標籤</td><td><code>--warning</code>（#e37400）</td></tr>
+      <tr><td>最低價標記</td><td>r7 紅點 + 金額標籤</td><td><code>--danger</code>（#c5221f）</td></tr>
+      <tr><td>旺季區塊</td><td>淡紅底 + 紅框 + 標籤</td><td><code>--danger-light</code> + 30% 邊框</td></tr>
+      <tr><td>便宜／貴</td><td>tooltip 差幅文字</td><td><code>--success</code> / <code>--danger</code></td></tr>
+      <tr><td>Tooltip</td><td>surface 底 + shadow-lg + 四行內容</td><td><code>--surface</code> / <code>--shadow-lg</code></td></tr>
+      <tr><td>控制元件</td><td>36px（mobile 44px）</td><td><code>--h</code> / <code>--h-mobile</code></td></tr>
+      <tr><td>斷點／售罄</td><td>空心圈 + 灰字</td><td><code>--muted</code></td></tr>
+      <tr><td>RWD 斷點</td><td>≥1024 原樣 ／ 768–1023 工具列 wrap ／ ≤767 單欄堆疊＋圖表橫向捲動</td><td>—</td></tr>
+    </table>
+    <div class="note"><b>資料對齊：</b>本 mockup 使用 2026-08-14 快照真實資料（東京 3 航班 × 40 週、大阪 2 航班 × 40 週）。「每週最低價」= 該週各航班最新價之最小者；平均線 = 40 週最低價之平均。圖表以 inline SVG 手繪示範互動，實作可改用圖表庫。</div>
+  </div>
+
+  <div class="footnote">
+    📄 對應文件：<b>docs/interaction-flows/票價趨勢圖.md</b> ・ 本文件：<b>docs/uiux/001-price-trend-design.html</b><br>
+    實作範圍：<b>票價趨勢圖單頁儀表板</b>（航線 tab / 航班選擇 / 日期範圍 / hover tooltip / 旺季標示 / summary 卡）<br>
+    資料來源：<b>api/index.json · api/trips/*.json</b>（GitHub Pages 靜態 API）
+  </div>
+</div>
+
+<script>
+// ══════════ 真實資料（由 python 由 api/trips/*.json 組裝，勿手改）══════════
+const PRICE_DATA = {"TPE-NRT":{"name":"東京","weeks":[{"d":"2026-08-15","r":"2026-08-23","min":32296,"f":{"JX800":32296,"JX802":46072,"JX804":33880}},{"d":"2026-08-22","r":"2026-08-30","min":26008,"f":{"JX800":46600,"JX802":38200,"JX804":26008}},{"d":"2026-08-29","r":"2026-09-06","min":16546,"f":{"JX800":17176,"JX802":16756,"JX804":16546}},{"d":"2026-09-05","r":"2026-09-13","min":14853,"f":{"JX800":17638,"JX802":17638,"JX804":14853}},{"d":"2026-09-12","r":"2026-09-20","min":18562,"f":{"JX800":22984,"JX802":18772,"JX804":18562}},{"d":"2026-09-19","r":"2026-09-27","min":14139,"f":{"JX800":15399,"JX802":15862,"JX804":14139}},{"d":"2026-09-26","r":"2026-10-04","min":19192,"f":{"JX800":19192,"JX802":19192,"JX804":19192}},{"d":"2026-10-03","r":"2026-10-11","min":18952,"f":{"JX800":22408,"JX802":18952,"JX804":18952}},{"d":"2026-10-10","r":"2026-10-18","min":16546,"f":{"JX800":17176,"JX802":16756,"JX804":16546}},{"d":"2026-10-17","r":"2026-10-25","min":17176,"f":{"JX800":19192,"JX802":17176,"JX804":17176}},{"d":"2026-10-24","r":"2026-11-01","min":17260,"f":{"JX800":22408,"JX802":20968,"JX804":17260}},{"d":"2026-10-31","r":"2026-11-08","min":14853,"f":{"JX800":15862,"JX802":16324,"JX804":14853}},{"d":"2026-11-07","r":"2026-11-15","min":18562,"f":{"JX800":22984,"JX802":19654,"JX804":18562}},{"d":"2026-11-14","r":"2026-11-22","min":20968,"f":{"JX800":23464,"JX802":22984,"JX804":20968}},{"d":"2026-11-21","r":"2026-11-29","min":16756,"f":{"JX800":21448,"JX802":16756,"JX804":18952}},{"d":"2026-11-28","r":"2026-12-06","min":16546,"f":{"JX800":20968,"JX802":17638,"JX804":16546}},{"d":"2026-12-05","r":"2026-12-13","min":16546,"f":{"JX800":17638,"JX802":17638,"JX804":16546}},{"d":"2026-12-12","r":"2026-12-20","min":17584,"f":{"JX800":22846,"JX802":20830,"JX804":17584}},{"d":"2026-12-19","r":"2026-12-27","min":21586,"f":{"JX800":23992,"JX802":22678,"JX804":21586}},{"d":"2026-12-26","r":"2027-01-03","min":22408,"f":{"JX800":24424,"JX802":24424,"JX804":22408}},{"d":"2027-01-02","r":"2027-01-10","min":15567,"f":{"JX800":15862,"JX802":19654,"JX804":15567}},{"d":"2027-01-09","r":"2027-01-17","min":19041,"f":{"JX800":21448,"JX802":19252,"JX804":19041}},{"d":"2027-01-16","r":"2027-01-24","min":18952,"f":{"JX800":20968,"JX802":18952,"JX804":18952}},{"d":"2027-01-23","r":"2027-01-31","min":23992,"f":{"JX800":27448,"JX802":26488,"JX804":23992}},{"d":"2027-01-30","r":"2027-02-07","min":26488,"f":{"JX800":29032,"JX802":27448,"JX804":26488}},{"d":"2027-02-06","r":"2027-02-14","min":37239,"f":{"JX800":42232,"JX802":40311,"JX804":37239}},{"d":"2027-02-13","r":"2027-02-21","min":16546,"f":{"JX800":17638,"JX802":16756,"JX804":16546}},{"d":"2027-02-20","r":"2027-02-28","min":19041,"f":{"JX800":21448,"JX802":20134,"JX804":19041}},{"d":"2027-02-27","r":"2027-03-07","min":19654,"f":{"JX800":19654,"JX802":19654,"JX804":19654}},{"d":"2027-03-06","r":"2027-03-14","min":15496,"f":{"JX800":19959,"JX802":17464,"JX804":15496}},{"d":"2027-03-13","r":"2027-03-21","min":15496,"f":{"JX800":17464,"JX802":15976,"JX804":15496}},{"d":"2027-03-20","r":"2027-03-28","min":15496,"f":{"JX800":17464,"JX802":15976,"JX804":15496}},{"d":"2027-03-27","r":"2027-04-04","min":19768,"f":{"JX800":21064,"JX802":20344,"JX804":19768}},{"d":"2027-04-03","r":"2027-04-11","min":37720,"f":{"JX800":38776,"JX802":38776,"JX804":37720}},{"d":"2027-04-10","r":"2027-04-18","min":16312,"f":{"JX800":18472,"JX802":16984,"JX804":16312}},{"d":"2027-04-17","r":"2027-04-25","min":16312,"f":{"JX800":18472,"JX802":17992,"JX804":16312}},{"d":"2027-04-24","r":"2027-05-02","min":22264,"f":{"JX800":23992,"JX802":22504,"JX804":22264}},{"d":"2027-05-01","r":"2027-05-09","min":15496,"f":{"JX800":17944,"JX802":15976,"JX804":15496}},{"d":"2027-05-08","r":"2027-05-16","min":15496,"f":{"JX800":17944,"JX802":17464,"JX804":15496}},{"d":"2027-05-15","r":"2027-05-23","min":15496,"f":{"JX800":17944,"JX802":17464,"JX804":15496}}]},"TPE-KIX":{"name":"大阪","weeks":[{"d":"2026-08-15","r":"2026-08-23","min":31575,"f":{"JX820":42855,"JX822":31575}},{"d":"2026-08-22","r":"2026-08-30","min":25815,"f":{"JX820":25815,"JX822":25815}},{"d":"2026-08-29","r":"2026-09-06","min":17729,"f":{"JX820":18183,"JX822":17729}},{"d":"2026-09-05","r":"2026-09-13","min":17729,"f":{"JX820":18561,"JX822":17729}},{"d":"2026-09-12","r":"2026-09-20","min":16289,"f":{"JX820":17120,"JX822":16289}},{"d":"2026-09-19","r":"2026-09-27","min":19713,"f":{"JX820":19713,"JX822":23126}},{"d":"2026-09-26","r":"2026-10-04","min":18992,"f":{"JX820":23847,"JX822":18992}},{"d":"2026-10-03","r":"2026-10-11","min":20534,"f":{"JX820":20534,"JX822":22406}},{"d":"2026-10-10","r":"2026-10-18","min":18881,"f":{"JX820":19335,"JX822":18881}},{"d":"2026-10-17","r":"2026-10-25","min":20534,"f":{"JX820":22406,"JX822":20534}},{"d":"2026-10-24","r":"2026-11-01","min":22406,"f":{"JX820":23847,"JX822":22406}},{"d":"2026-10-31","r":"2026-11-08","min":14823,"f":{"JX820":14823,"JX822":16743}},{"d":"2026-11-07","r":"2026-11-15","min":19713,"f":{"JX820":19713,"JX822":21254}},{"d":"2026-11-14","r":"2026-11-22","min":21975,"f":{"JX820":26535,"JX822":21975}},{"d":"2026-11-21","r":"2026-11-29","min":20534,"f":{"JX820":23126,"JX822":20534}},{"d":"2026-11-28","r":"2026-12-06","min":23126,"f":{"JX820":23126,"JX822":23126}},{"d":"2026-12-05","r":"2026-12-13","min":18662,"f":{"JX820":18662,"JX822":18662}},{"d":"2026-12-12","r":"2026-12-20","min":16743,"f":{"JX820":16743,"JX822":16743}},{"d":"2026-12-19","r":"2026-12-27","min":21975,"f":{"JX820":21975,"JX822":21975}},{"d":"2026-12-26","r":"2027-01-03","min":19713,"f":{"JX820":19713,"JX822":19713}},{"d":"2027-01-02","r":"2027-01-10","min":16743,"f":{"JX820":16743,"JX822":16743}},{"d":"2027-01-09","r":"2027-01-17","min":14823,"f":{"JX820":14823,"JX822":14823}},{"d":"2027-01-16","r":"2027-01-24","min":15201,"f":{"JX820":15201,"JX822":15201}},{"d":"2027-01-23","r":"2027-01-31","min":20534,"f":{"JX820":20534,"JX822":20534}},{"d":"2027-01-30","r":"2027-02-07","min":27639,"f":{"JX820":28359,"JX822":27639}},{"d":"2027-02-06","r":"2027-02-14","min":39783,"f":{"JX820":41943,"JX822":39783}},{"d":"2027-02-13","r":"2027-02-21","min":14823,"f":{"JX820":14823,"JX822":14823}},{"d":"2027-02-20","r":"2027-02-28","min":16743,"f":{"JX820":16743,"JX822":16743}},{"d":"2027-02-27","r":"2027-03-07","min":16743,"f":{"JX820":16743,"JX822":16743}},{"d":"2027-03-06","r":"2027-03-14","min":16694,"f":{"JX820":17462,"JX822":16694}},{"d":"2027-03-13","r":"2027-03-21","min":16694,"f":{"JX820":16694,"JX822":16694}},{"d":"2027-03-20","r":"2027-03-28","min":16262,"f":{"JX820":16262,"JX822":16694}},{"d":"2027-03-27","r":"2027-04-04","min":20294,"f":{"JX820":20294,"JX822":20582}},{"d":"2027-04-03","r":"2027-04-11","min":37047,"f":{"JX820":37047,"JX822":37047}},{"d":"2027-04-10","r":"2027-04-18","min":16262,"f":{"JX820":16262,"JX822":16262}},{"d":"2027-04-17","r":"2027-04-25","min":24615,"f":{"JX820":24615,"JX822":24615}},{"d":"2027-04-24","r":"2027-05-02","min":22022,"f":{"JX820":22022,"JX822":22022}},{"d":"2027-05-01","r":"2027-05-09","min":16694,"f":{"JX820":16694,"JX822":16694}},{"d":"2027-05-08","r":"2027-05-16","min":16262,"f":{"JX820":16262,"JX822":16262}},{"d":"2027-05-15","r":"2027-05-23","min":16262,"f":{"JX820":16262,"JX822":16262}}]}};
+
+const PEAKS = [
+  { label: '農曆過年', idx: [24, 25] },
+  { label: '櫻花季',   idx: [32, 33] }
+];
+const YMIN = 12000, YMAX = 42000, W = 900, H = 330;
+const M = { l: 60, r: 14, t: 22, b: 36 };
+const NS = 'http://www.w3.org/2000/svg';
+const RANGE = { 12: '3 個月', 24: '6 個月', 40: '全部 40 週' };
+
+let curRoute = 'TPE-NRT', curFlight = 'all', curRange = 40;
+
+const svg = document.getElementById('chart');
+const tip = document.getElementById('tip');
+const chartWrap = document.getElementById('chartWrap');
+const chartTitle = document.getElementById('chartTitle');
+const flightSel = document.getElementById('flightSel');
+const routeTabs = document.getElementById('routeTabs');
+const rangeSeg = document.getElementById('rangeSeg');
+const sumMin = document.getElementById('sumMin');
+const sumMinS = document.getElementById('sumMinS');
+const sumAvg = document.getElementById('sumAvg');
+const sumPeak = document.getElementById('sumPeak');
+const sumPeakS = document.getElementById('sumPeakS');
+
+const fmt = n => 'NT$' + n.toLocaleString('en-US');
+const fmtD = d => { const p = d.split('-'); return p[1] + '/' + p[2]; };
+const globalAvg = route => {
+  const ws = PRICE_DATA[route].weeks;
+  return Math.round(ws.reduce((s, w) => s + w.min, 0) / ws.length);
+};
+const svgEl = (name, attrs) => {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+};
+
+function buildChart() {
+  const data = PRICE_DATA[curRoute];
+  const weeks = data.weeks.slice(0, curRange);
+  const avg = globalAvg(curRoute);
+  const n = weeks.length;
+  const firstIdx = 40 - n;
+  const X = i => M.l + i * (W - M.l - M.r) / (n - 1);
+  const Y = v => H - M.b - (v - YMIN) / (YMAX - YMIN) * (H - M.t - M.b);
+
+  svg.innerHTML = '';
+
+  // Y 軸網格 + 標籤
+  for (let v = YMIN; v <= YMAX; v += 6000) {
+    svg.appendChild(svgEl('line', { x1: M.l, y1: Y(v), x2: W - M.r, y2: Y(v), 'class': 'grid-major' }));
+    const t = svgEl('text', { x: M.l - 8, y: Y(v) + 4, 'class': 'tick-label', 'text-anchor': 'end' });
+    t.textContent = (v / 1000) + 'K';
+    svg.appendChild(t);
+  }
+  // X 軸標籤（每 4 週）
+  for (let i = 0; i < n; i += 4) {
+    const t = svgEl('text', { x: X(i), y: H - M.b + 16, 'class': 'tick-label', 'text-anchor': 'middle' });
+    t.textContent = fmtD(weeks[i].d);
+    svg.appendChild(t);
+  }
+  const cap = svgEl('text', { x: W - M.r, y: H - 4, 'class': 'axis-caption', 'text-anchor': 'end' });
+  cap.textContent = '出發日期（週六）· 單位 TWD 來回';
+  svg.appendChild(cap);
+
+  // 旺季區塊
+  PEAKS.forEach(p => {
+    const lo = Math.max(p.idx[0], firstIdx) - firstIdx;
+    const hi = Math.min(p.idx[1], 39) - firstIdx;
+    if (hi < 0 || lo > n - 1) return;
+    const x1 = X(Math.max(lo, 0));
+    const x2 = X(Math.min(hi, n - 1)) + (X(1) - X(0));
+    svg.appendChild(svgEl('rect', { x: x1, y: M.t, width: x2 - x1, height: H - M.t - M.b, 'class': 'peak-rect', rx: 4 }));
+    const t = svgEl('text', { x: x1 + 6, y: M.t + 15, 'class': 'peak-label' });
+    t.textContent = p.label;
+    svg.appendChild(t);
+  });
+
+  // 全域平均線
+  svg.appendChild(svgEl('line', { x1: M.l, y1: Y(avg), x2: W - M.r, y2: Y(avg), 'class': 'avg-line' }));
+  const al = svgEl('text', { x: W - M.r - 4, y: Y(avg) - 7, 'class': 'avg-label', 'text-anchor': 'end' });
+  al.textContent = '平均 ' + fmt(avg);
+  svg.appendChild(al);
+
+  // 資料點（null = 斷點）
+  const pts = weeks.map((w, i) => {
+    const price = curFlight === 'all' ? w.min : (w.f[curFlight] !== undefined ? w.f[curFlight] : null);
+    return { i, x: X(i), y: isFinite(price) ? Y(price) : null, price, w };
+  });
+
+  // 折線（分段處理斷點）
+  let d = '', seg = false;
+  pts.forEach(p => {
+    if (p.y === null) { seg = false; return; }
+    d += (seg ? ' L' : ' M') + p.x + ' ' + p.y;
+    seg = true;
+  });
+  if (d) svg.appendChild(svgEl('path', { d, 'class': 'price-line' }));
+
+  // 資料點 circle
+  pts.forEach(p => {
+    if (p.y === null) {
+      const g = svgEl('circle', { cx: p.x, cy: Y(avg), r: 4, 'class': 'gap-dot' });
+      g.setAttribute('data-i', p.i);
+      svg.appendChild(g);
+      return;
+    }
+    const c = svgEl('circle', { cx: p.x, cy: p.y, r: 4, 'class': 'dot', tabindex: '0', role: 'button' });
+    c.setAttribute('data-i', p.i);
+    c.setAttribute('aria-label', '出發 ' + p.w.d + '，價格 ' + fmt(p.price));
+    svg.appendChild(c);
+  });
+
+  // 可見範圍最低價標記
+  const valid = pts.filter(p => p.y !== null);
+  if (valid.length) {
+    const minP = valid.reduce((a, b) => (b.w.min < a.w.min ? b : a), valid[0]);
+    const mc = svgEl('circle', { cx: minP.x, cy: minP.y, r: 7, 'class': 'dot min' });
+    mc.setAttribute('data-i', minP.i);
+    svg.appendChild(mc);
+    const ml = svgEl('text', { x: minP.x, y: minP.y - 13, 'class': 'min-label', 'text-anchor': 'middle' });
+    ml.textContent = '最便宜 ' + fmt(minP.w.min);
+    svg.appendChild(ml);
+  }
+
+  // 標題 + summary
+  chartTitle.innerHTML = '<b>' + data.name + ' ' + curRoute + '</b> · ' +
+    (curFlight === 'all' ? '每週最低價' : '航班 ' + curFlight) + ' · ' + RANGE[curRange] +
+    '（' + n + ' 週）';
+  updateSummary(weeks, avg);
+}
+
+function updateSummary(weeks, avg) {
+  const valid = weeks.filter(w => w.min !== null && w.min !== undefined);
+  if (!valid.length) {
+    sumMin.textContent = '—'; sumMinS.textContent = '';
+    sumAvg.textContent = '—'; sumPeak.textContent = '—'; sumPeakS.textContent = '';
+    return;
+  }
+  const minW = valid.reduce((a, b) => (b.min < a.min ? b : a), valid[0]);
+  const maxW = valid.reduce((a, b) => (b.min > a.min ? b : a), valid[0]);
+  const dMin = Math.round((minW.min - avg) / avg * 100);
+  const dMax = Math.round((maxW.min - avg) / avg * 100);
+  sumMin.textContent = fmtD(minW.d) + ' 出發 · ' + fmt(minW.min);
+  sumMinS.textContent = '比平均' + (dMin <= 0 ? '低' : '高') + ' ' + Math.abs(dMin) + '%';
+  sumAvg.textContent = fmt(avg);
+  sumPeak.textContent = fmtD(maxW.d) + ' 出發 · ' + fmt(maxW.min);
+  sumPeakS.textContent = '高於平均 ' + dMax + '%' + (maxW.d >= '2027-01-20' ? '（旺季區間）' : '');
+}
+
+function renderFlightSel() {
+  const flights = Object.keys(PRICE_DATA[curRoute].weeks[0].f);
+  flightSel.innerHTML = '<option value="all">全部（每週最低價）</option>' +
+    flights.map(f => '<option value="' + f + '">航班 ' + f + '</option>').join('');
+  if (!flights.includes(curFlight)) curFlight = 'all';
+  flightSel.value = curFlight;
+}
+
+function showTip(w, ev) {
+  const price = curFlight === 'all' ? w.min : w.f[curFlight];
+  const avg = globalAvg(curRoute);
+  let html = '<div class="t-date">去程 ' + fmtD(w.d) + '（週六）· 回程 ' + fmtD(w.r) + '</div>';
+  if (price !== undefined && price !== null) {
+    const diff = Math.round((price - avg) / avg * 100);
+    html += '<div class="t-price">' + fmt(price) + '</div>' +
+      '<div class="' + (diff <= 0 ? 't-low' : 't-high') + '">比平均' + (diff <= 0 ? '便宜' : '貴') + ' ' + Math.abs(diff) + '%</div>';
+  } else {
+    html += '<div class="t-none">本週無資料（缺資料 / 售罄）</div>';
+  }
+  if (curFlight !== 'all') html += '<div class="t-fl">航班 ' + curFlight + '</div>';
+  tip.innerHTML = html;
+  tip.classList.add('show');
+  if (ev) {
+    const r = chartWrap.getBoundingClientRect();
+    const lx = ev.clientX - r.left + 16;
+    const ty = ev.clientY - r.top - 12;
+    tip.style.left = Math.min(lx, r.width - 190) + 'px';
+    tip.style.top = Math.max(ty, 4) + 'px';
+  }
+}
+function hideTip() { tip.classList.remove('show'); }
+
+// ══════════ 互動 ══════════
+routeTabs.addEventListener('click', e => {
+  const b = e.target.closest('button[data-route]');
+  if (!b || b.dataset.route === curRoute) return;
+  curRoute = b.dataset.route;
+  routeTabs.querySelectorAll('button').forEach(x => {
+    x.classList.toggle('active', x === b);
+    x.setAttribute('aria-selected', x === b ? 'true' : 'false');
+  });
+  renderFlightSel();
+  buildChart();
+});
+
+rangeSeg.addEventListener('click', e => {
+  const b = e.target.closest('button[data-range]');
+  if (!b) return;
+  curRange = +b.dataset.range;
+  rangeSeg.querySelectorAll('button').forEach(x => {
+    x.classList.toggle('active', x === b);
+    x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+  });
+  buildChart();
+});
+
+flightSel.addEventListener('change', () => {
+  curFlight = flightSel.value;
+  buildChart();
+});
+
+// tooltip（事件委派）
+svg.addEventListener('mousemove', e => {
+  const c = e.target.closest ? e.target.closest('circle[data-i]') : null;
+  if (!c) { hideTip(); return; }
+  const i = +c.dataset.i;
+  showTip(PRICE_DATA[curRoute].weeks[i], e);
+});
+svg.addEventListener('mouseleave', hideTip);
+svg.addEventListener('focusin', e => {
+  const c = e.target.closest ? e.target.closest('circle[data-i]') : null;
+  if (!c) return;
+  const i = +c.dataset.i;
+  showTip(PRICE_DATA[curRoute].weeks[i], null);
+});
+svg.addEventListener('focusout', hideTip);
+
+// ══════════ 模板內建切換 ══════════
+const themeBtn = document.getElementById('themeToggle');
+themeBtn.addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  themeBtn.textContent = dark ? '🌙 切換深色' : '☀️ 切換淺色';
+});
+const devSwitch = document.getElementById('devSwitch');
+devSwitch.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  devSwitch.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.body.classList.toggle('view-mobile', b.dataset.dev === 'mobile');
+}));
+
+// 初始繪圖
+renderFlightSel();
+buildChart();
+</script>
+</body>
+</html>
