@@ -1,0 +1,122 @@
+# 開發方案決策文件：票價資料公開 API（靜態 JSON）
+
+## 📌 決策摘要
+
+| 項目 | 內容 |
+|------|------|
+| **最終方案** | GitHub Pages 靜態 JSON API（repo 轉 public） |
+| **決策日期** | 2026-08-14 |
+| **參與討論** | 使用者（個人專案） |
+| **共識程度** | ✅ 單人決策確認 |
+| **驗證狀態** | ✅ Pages / raw / jsDelivr 三路皆 200，CORS 全開 |
+
+---
+
+## 1. 需求回顧
+
+| 項目 | 共識 |
+|------|------|
+| API 定位 | 純資料來源（data source），公開給人抓 |
+| 使用者 | 公開（含自己的系統：抓 JSON → 轉存 DB → 做分析圖） |
+| API 型態 | 靜態 JSON（最簡單，零維運） |
+| 認證 | 不需要（公開資料） |
+| 更新頻率 | 每週一次（與爬蟲同節奏） |
+
+**關鍵約束**：原 repo 為 private → 匿名抓取不可行、Pages 需付費方案 → 需轉 public。
+
+---
+
+## 2. 候選方案
+
+### 🟢 方案 A：repo 轉 public ＋ GitHub Pages 靜態 API（**當選**）
+- repo 設 public（資料僅公開票價，無機密；Actions 變免費無限量）
+- 每次爬完由 `build_api.py` 產生 API 成品並 commit
+- 同一批檔案同時可用 Pages / raw.githubusercontent / jsDelivr CDN
+
+### 🟡 方案 B：code 留 private，data 另推 public repo
+- 程式碼不外洩，但多一個 repo 管理、兩次 push、URL 分段
+
+### 🔵 方案 C：Cloudflare Workers REST（未來升級）
+- 支援 query 參數，但超出「靜態最簡單」的需求，留待日後
+
+---
+
+## 3. 權衡評估
+
+| 維度 | 🟢 A: Pages(轉public) | 🟡 B: data獨立repo |
+|------|:---:|:---:|
+| 🎯 需求符合度 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| ⚡ 開發速度 | ⭐⭐⭐⭐⭐（半天） | ⭐⭐⭐ |
+| 🔧 維護成本 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| 💰 成本 | ⭐⭐⭐⭐⭐（$0） | ⭐⭐⭐⭐⭐ |
+| 📈 擴充性 | ⭐⭐⭐⭐（Pages 也能放前端） | ⭐⭐⭐ |
+
+**關鍵取捨**：使用者先前已選 public repo；資料無敏感內容 → 轉 public 非犧牲，是回到原意。
+
+---
+
+## 4. 決策理由
+
+### 為什麼選擇方案 A
+1. **零成本零維運**：GitHub Pages 免費托管靜態檔，workflow 自動產生+commit
+2. **三條存取路**：Pages / raw / jsDelivr CDN 同批檔案天然可用，消費端任選
+3. **符合消費端流程**：每週原始檔可直接餵 DB upsert；trips/ 檔直接畫趨勢圖
+
+### 放棄其他方案
+- **方案 B**：額外 repo 管理成本，無實際收益（程式無機密）
+- **方案 C（REST）**：現階段靜態已滿足，日後有 query 需求再升級
+
+---
+
+## 5. 行動計畫（已完成 ✅）
+
+### API 成品結構
+
+```
+api/
+├── index.json       # 目錄：來源檔清單、航線、產生時間
+├── latest.json      # 最新快照（每組合保留最新一筆）
+└── trips/           # 每趟旅程的價格歷史（畫趨勢圖用）
+    └── TPE-NRT_2026-08-22_2026-08-30.json
+data/YYYYMMDD.json   # 原始每週檔（保留，供 DB 全量載入）
+```
+
+### 對外網址
+
+| 路徑 | 網址 |
+|------|------|
+| Pages | `https://yuhaoliaosideproject.github.io/AirTicketsPrice/api/index.json` |
+| raw | `https://raw.githubusercontent.com/YuHaoLiaoSideProject/AirTicketsPrice/main/api/index.json` |
+| jsDelivr | `https://cdn.jsdelivr.net/gh/YuHaoLiaoSideProject/AirTicketsPrice@main/api/index.json` |
+
+### 已交付
+
+- `build_api.py`（編譯 index / latest / trips）
+- workflow 新增 Build API 步驟 + commit api/
+- repo 轉 public
+- GitHub Pages 啟用（Deploy from main / root）
+- README 新增 API 使用文件
+
+### 消費端載入建議（DB upsert）
+
+- key = `(route_id, outbound_date, return_date, outbound_flight_no)`
+- 同 key 保留 `scraped_at` 最新者
+- 趨勢圖直接吃 `api/trips/*.json`
+
+---
+
+## 6. 風險登錄
+
+| 風險 | 可能性 | 影響 | 緩解措施 |
+|------|--------|------|---------|
+| Pages 建置延遲（首次 ~1 分） | 低 | 低 | raw/jsDelivr 可立即取用 |
+| 消費端抓取頻率過高 | 低 | 低 | Pages 無限流量；jsDelivr 有 CDN 快取 |
+| repo 誤改回 private 致 API 斷線 | 低 | 中 | workflow 加 visibility 檢查（選配） |
+
+---
+
+## 📝 決策後續
+
+- 本文件存至 `docs/tech-decision-票價靜態API-2026-08-14.md`
+- 建議 1 個月後回顧：是否有 query 需求（→ 升級 Cloudflare Workers）
+- 前端/分析圖為獨立專案，可另開 repo 消費本 API

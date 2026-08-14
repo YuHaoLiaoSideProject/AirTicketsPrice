@@ -92,6 +92,60 @@ python fetch_prices.py                       # 用今天日期
 - 重複執行會去重合併（同 key = route + 日期 + 班號），不會重複累積
 - 查詢失敗的組合會跳過並回報，不影響已成功的資料
 
+## 📡 公開 API（靜態 JSON）
+
+資料每週自動更新，公開給任何程式抓取（CORS 全開、免認證）。
+
+### 進入點（三條路都可用）
+
+| 路徑 | 網址 | 適合 |
+|------|------|------|
+| GitHub Pages | `https://yuhaoliaosideproject.github.io/AirTicketsPrice/api/index.json` | 正式使用 |
+| raw | `https://raw.githubusercontent.com/YuHaoLiaoSideProject/AirTicketsPrice/main/api/index.json` | 開發測試 |
+| jsDelivr CDN | `https://cdn.jsdelivr.net/gh/YuHaoLiaoSideProject/AirTicketsPrice@main/api/index.json` | 全球加速 |
+
+### API 成品（每次爬蟲後自動產生）
+
+```
+api/
+├── index.json       # 目錄：來源檔清單、航線、產生時間（從這裡開始）
+├── latest.json      # 最新快照：每 (航線,去程,回程,班號) 保留最新票價
+└── trips/           # 每趟旅程的價格歷史（畫趨勢圖直接用）
+    └── TPE-NRT_2026-08-22_2026-08-30.json
+```
+
+### 消費端建議流程（轉存 DB）
+
+1. `GET api/index.json` → 看有哪些檔案
+2. 依序抓 `data/*.json`（每週原始檔）→ **upsert 進 DB**
+   （key = `route_id + outbound_date + return_date + outbound_flight_no`，
+   同 key 保留 `scraped_at` 最新者）
+3. 畫趨勢圖 → 直接抓 `api/trips/*.json`（每航班一條價格歷史序列）
+
+### trips 檔範例
+
+```json
+{
+  "route_id": "TPE-NRT",
+  "outbound_date": "2026-08-22",
+  "return_date": "2026-08-30",
+  "flights": [
+    {
+      "outbound_flight_no": "JX 804",
+      "airline_name": "星宇航空",
+      "history": [
+        {"scraped_at": "2026-08-14T12:21:03.000Z", "price_total": 26008, "status": "Available"},
+        {"scraped_at": "2026-08-21T01:00:00.000Z", "price_total": 24120, "status": "Available"}
+      ]
+    }
+  ]
+}
+```
+
+> 原始每週檔也在 repo 裡：`data/20260814.json`（可經同 base URL 存取）。
+
+---
+
 ## 📈 之後可擴充
 
 - [ ] 趨勢圖視覺化（把 data/*.json 畫成折線圖）
