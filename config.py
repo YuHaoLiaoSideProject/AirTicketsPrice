@@ -10,7 +10,8 @@
 ROUTES = [
     {"route_id": "TPE-NRT", "origin": "TPE", "destination": "NRT"},  # 東京成田
     {"route_id": "TPE-KIX", "origin": "TPE", "destination": "KIX"},  # 大阪關西
-    # {"route_id": "TPE-FUK", "origin": "TPE", "destination": "FUK"},  # 福岡（要追蹤就取消註解）
+    {"route_id": "TPE-FUK", "origin": "TPE", "destination": "FUK"},  # 福岡
+    {"route_id": "TPE-CTS", "origin": "TPE", "destination": "CTS"},  # 札幌新千歲
 ]
 
 # 查詢未來幾週（去週六 → 下週日）

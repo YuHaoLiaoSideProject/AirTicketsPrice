@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星宇機票價格趨勢</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="page">
+
+  <!-- 頁首：標題 + 更新時間 + 過舊警示 -->
+  <header class="ph">
+    <div>
+      <h1 class="ph-title">票價趨勢</h1>
+      <p class="ph-sub">星宇航空來回票價（經濟艙 · 去程週六 → 回程下週日）</p>
+    </div>
+    <div class="ph-right">
+      <span id="staleBar" class="alertbar" hidden>
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span id="staleText">資料可能過時</span>
+      </span>
+      <span class="badge-upd"><span class="dotg"></span><span id="updText">載入中…</span></span>
+    </div>
+  </header>
+
+  <!-- 航線 tab -->
+  <nav id="routeTabs" class="route-tabs" role="tablist" aria-label="選擇航線"></nav>
+
+  <!-- 工具列 -->
+  <div class="chart-toolbar" id="toolbar">
+    <label class="tb-label" for="flightSel">航班</label>
+    <select id="flightSel" class="sel" aria-label="選擇航班"></select>
+    <div id="rangeSeg" class="seg-chart" role="group" aria-label="日期範圍"></div>
+    <div class="legend-row" aria-label="圖例">
+      <span class="lg"><span class="sw"></span>每週最低價</span>
+      <span class="lg"><span class="sw avg"></span>平均價</span>
+      <span class="lg"><span class="sw min"></span>最便宜</span>
+      <span class="lg"><span class="sw pk"></span>旺季</span>
+    </div>
+    <span id="progress" class="progress-text" hidden>已載入 0/40</span>
+  </div>
+
+  <!-- 錯誤卡 / 空狀態 -->
+  <div id="errBox" class="errbox" hidden>
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <div class="err-body">
+      <b>資料載入失敗</b>
+      <div id="errDetail" class="err-detail"></div>
+    </div>
+    <button id="retryBtn" class="btn" type="button">重試</button>
+  </div>
+  <div id="emptyBox" class="emptybox" hidden>
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V6a2 2 0 0 1 2-2h8l2 2h4a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+    <span>尚無價格資料，每週五更新</span>
+  </div>
+
+  <!-- 圖表區 -->
+  <div id="chartWrap" class="chart-wrap">
+    <div id="chartTitle" class="chart-title"></div>
+    <div id="skeleton" class="skeleton" hidden aria-hidden="true"></div>
+    <svg id="chart" viewBox="0 0 900 330" role="img" aria-label="票價趨勢圖"></svg>
+    <div id="tip" class="tip" role="tooltip"></div>
+  </div>
+
+  <!-- Summary 三卡 -->
+  <div id="summary" class="summary">
+    <div class="scard cheap">
+      <div class="s-k">最便宜出發週</div>
+      <div class="s-v" id="sumMin">—</div>
+      <div class="s-s" id="sumMinS"></div>
+    </div>
+    <div class="scard avg">
+      <div class="s-k">全域平均價</div>
+      <div class="s-v" id="sumAvg">—</div>
+      <div class="s-s">比較基準（不受日期範圍篩選影響）</div>
+    </div>
+    <div class="scard peak">
+      <div class="s-k">旺季提醒</div>
+      <div class="s-v" id="sumPeak">—</div>
+      <div class="s-s" id="sumPeakS"></div>
+    </div>
+  </div>
+
+</div>
+<script src="aggregate.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

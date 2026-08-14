@@ -72,7 +72,7 @@ python fetch_prices.py                       # 用今天日期
 
 | 參數 | 說明 | 預設 |
 |------|------|------|
-| `ROUTES` | 追蹤的航線 | TPE-NRT（東京）、TPE-KIX（大阪） |
+| `ROUTES` | 追蹤的航線 | TPE-NRT（東京）、TPE-KIX（大阪）、TPE-FUK（福岡）、TPE-CTS（札幌） |
 | `NUM_WEEKS` | 查詢未來幾週 | 10 |
 | `RETURN_AFTER_DAYS` | 回程 = 去程 + 天數（下週日） | 8 |
 | `CABIN` | 艙等 | eco |
@@ -146,9 +146,46 @@ api/
 
 ---
 
+## 📊 票價趨勢圖（前端）
+
+純靜態前端單頁儀表板（零建置、零依賴），顯示各航線未來 40 週來回票價趨勢：
+
+- 40 週每週最低價折線 + 全域平均虛線 + 最低價標記 + 旺季區塊（過年／櫻花季）
+- 航線切換（東京／大阪／福岡／札幌）、航班切換、日期範圍篩選、hover tooltip
+- Summary 三卡（最便宜出發週／全域平均／旺季提醒）
+
+| 檔案 | 說明 |
+|------|------|
+| `web/index.html` | 單頁結構（語意化標籤 + aria） |
+| `web/styles.css` | 設計 token + RWD + 無障礙 |
+| `web/app.js` | 資料層 + 圖表層 + 互動層 + 狀態處理 |
+| `web/aggregate.js` | 聚合純函式（可單元測試） |
+| `tests/e2e_smoke.py` | Playwright E2E 冒煙 + mocked 邊界 |
+| `tests/unit/aggregate.test.js` | 聚合模組單元測試（node:test） |
+
+**線上網址**：`https://yuhaoliaosideproject.github.io/AirTicketsPrice/web/`
+
+### 本機開發／驗證
+
+```bash
+# 1. 起本機伺服器（repo 根目錄，模擬 Pages）
+python -m http.server 8000
+# 開啟 http://localhost:8000/web/
+
+# 2. 單元測試（聚合純函式）
+node --test "tests/unit/*.test.js"
+
+# 3. E2E 冒煙（真實資料 + mocked 邊界 + 375px mobile）
+python tests/e2e_smoke.py   # 全部綠才 commit
+```
+
+> 注意：前端純消費既有靜態 API（`api/index.json` / `api/trips/*.json`），不需登入；新增航線只需更新 `config.py` 並等爬蟲產出資料，前端 `web/aggregate.js` 的 `CONFIG.ROUTES` 同步加上即可。
+
+---
+
 ## 📈 之後可擴充
 
-- [ ] 趨勢圖視覺化（把 data/*.json 畫成折線圖）
-- [ ] 擴到 40 週
+- [x] 趨勢圖視覺化（把 data/*.json 畫成折線圖）
+- [ ] 同一趟旅程的歷史走勢（需資料累積數週後）
 - [ ] 商務艙追蹤
-- [ ] 更多航線
+- [ ] 多航線並排比較
