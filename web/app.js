@@ -147,8 +147,17 @@
       }
     }
     if (!flightSet.includes(state.flight)) state.flight = 'all'; // 回退（大阪無 JX 800）
-    flightSel.innerHTML = '<option value="all">全部（每週最低價）</option>' +
-      flightSet.map(no => '<option value="' + no + '">航班 ' + no + '</option>').join('');
+    flightSel.innerHTML = '';
+    const all = document.createElement('option');
+    all.value = 'all';
+    all.textContent = '全部（每週最低價）';
+    flightSel.appendChild(all);
+    flightSet.forEach(no => {
+      const o = document.createElement('option');
+      o.value = no;
+      o.textContent = '航班 ' + no; // DOM API 建構，避免 API 資料注入 HTML（XSS）
+      flightSel.appendChild(o);
+    });
     flightSel.value = state.flight;
   }
 
@@ -159,7 +168,10 @@
     if (disabled) progress.hidden = false; else progress.hidden = true;
   }
 
+  let controlsBound = false;
   function initControls() {
+    if (controlsBound) return; // 重試（init 重跑）不重複綁定，避免 listener 堆疊
+    controlsBound = true;
     routeTabs.addEventListener('click', async e => {
       const b = e.target.closest('button[data-route]');
       if (!b || b.dataset.route === state.route || state.loading) return;
@@ -190,6 +202,9 @@
   const { MIN: YMIN, MAX: YMAX } = CONFIG.Y;
   const fmt = n => 'NT$' + n.toLocaleString('en-US');
   const fmtD = d => d ? d.split('-').slice(1).join('/') : '—';
+  // HTML 跳脫（API 資料進入 innerHTML 前必經，防 XSS）
+  const esc = s => String(s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const svgEl = (name, attrs) => {
     const e = document.createElementNS(NS, name);
     for (const k in attrs) e.setAttribute(k, attrs[k]);
@@ -203,7 +218,7 @@
     const avg = globalAverage(weeks); // 全域（不隨範圍漂移，F-06）
     const n = visible.length;
     if (n === 0) return;
-    const X = i => M.l + i * (W - M.l - M.r) / (n - 1);
+    const X = i => M.l + i * (W - M.l - M.r) / Math.max(n - 1, 1); // 單週資料時避免除以零（NaN）
     const Y = v => H - M.b - (v - YMIN) / (YMAX - YMIN) * (H - M.t - M.b);
     const Yclamp = v => Math.max(Y(v), M.t); // E21：出界點 clamp 至圖表上緣
 
@@ -230,6 +245,7 @@
     CONFIG.PEAKS.forEach(p => {
       const start = visible.findIndex(w => w.d >= p.from);
       if (start < 0) return;
+      if (visible[start].d > p.to) return; // 可見範圍在旺季結束之後 → 無交集，避免單格殘影
       let end = start;
       while (end + 1 < visible.length && visible[end + 1].d <= p.to) end++;
       const x1 = X(start);
@@ -255,14 +271,15 @@
       return { i, x: X(i), y: price === null ? null : Yclamp(price), price, w };
     });
 
-    // 折線（斷點分段）
-    let d = '', seg = false;
+    // 折線（斷點分段；僅有單點（無 L 段）時不產生退化 path）
+    let d = '', seg = false, hasLine = false;
     pts.forEach(p => {
       if (p.y === null) { seg = false; return; }
+      if (seg) hasLine = true;
       d += (seg ? ' L' : ' M') + p.x + ' ' + p.y;
       seg = true;
     });
-    if (d) chart.appendChild(svgEl('path', { d, 'class': 'price-line' }));
+    if (hasLine) chart.appendChild(svgEl('path', { d, 'class': 'price-line' }));
 
     // 資料點 circle + 售罄/缺資料標示
     pts.forEach(p => {
@@ -299,8 +316,8 @@
 
     // chart-title（BDD 標題格式）
     const flightLabel = state.flight === 'all' ? '每週最低價' : '航班 ' + state.flight;
-    chartTitle.innerHTML = '<b>' + routeInfo.name + ' ' + state.route + '</b> · ' +
-      flightLabel + ' · 顯示 ' + rangeLabel() + '（共 ' + n + ' 週）';
+    chartTitle.innerHTML = '<b>' + esc(routeInfo.name) + ' ' + esc(state.route) + '</b> · ' +
+      esc(flightLabel) + ' · 顯示 ' + esc(rangeLabel()) + '（共 ' + n + ' 週）';
     chart.setAttribute('aria-label', '票價趨勢圖：' + routeInfo.name + ' ' + state.route + '，' + flightLabel + '，' + rangeLabel());
 
     renderSummary(visible, avg);
@@ -309,7 +326,7 @@
   // ═══════════════ Tooltip（§2.7） ═══════════════
   function showTip(w, ev) {
     const avg = globalAverage(routeCache.get(state.route) || []);
-    let html = '<div class="t-date">去程 ' + fmtD(w.d) + '（週六）· 回程 ' + fmtD(w.r) + '</div>';
+    let html = '<div class="t-date">去程 ' + esc(fmtD(w.d)) + '（週六）· 回程 ' + esc(fmtD(w.r)) + '</div>';
     let price = w.min;
     if (state.flight !== 'all') price = (w.f && w.f[state.flight] !== undefined) ? w.f[state.flight] : null;
     if (price !== null && price !== undefined) {
@@ -322,10 +339,10 @@
       html += '<div class="t-none">本週無資料</div>';
     }
     if (state.flight !== 'all') {
-      html += '<div class="t-fl">航班 ' + state.flight + '</div>';
+      html += '<div class="t-fl">航班 ' + esc(state.flight) + '</div>';
     } else if (w.min !== null && w.f) {
       const no = Object.keys(w.f).find(k => w.f[k] === w.min);
-      if (no) html += '<div class="t-fl">最低價航班 ' + no + '</div>';
+      if (no) html += '<div class="t-fl">最低價航班 ' + esc(no) + '</div>';
     }
     tip.innerHTML = html;
     tip.classList.add('show');
@@ -363,7 +380,8 @@
   function setLoading(loading) {
     state.loading = loading;
     skeleton.hidden = !loading;
-    chart.hidden = loading;
+    if (loading) { chart.hidden = true; emptyBox.hidden = true; }
+    // 載入完成後的 chart/emptyBox 顯示由 drawCurrentRoute 依資料決定（避免空航線顯示空白 SVG）
     setToolbarDisabled(loading);
   }
 
@@ -401,6 +419,7 @@
       chart.hidden = true;
       emptyBox.hidden = false;
       chartTitle.textContent = '';
+      chart.removeAttribute('aria-label');
       return;
     }
     chart.hidden = false;
@@ -461,7 +480,9 @@
     const i = +c.dataset.i;
     const weeks = routeCache.get(state.route) || [];
     const visible = filterRange(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
-    showTip(visible[i], null);
+    // 鍵盤 focus 無滑鼠座標 → 以資料點位置定位 tooltip（E2E-17）
+    const rect = c.getBoundingClientRect();
+    showTip(visible[i], { clientX: rect.left + rect.width / 2, clientY: rect.top });
   });
   chart.addEventListener('focusout', hideTip);
 

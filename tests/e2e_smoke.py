@@ -216,6 +216,21 @@ def run_tests(browser):
     page.wait_for_timeout(800)
     check('E2E-16 切回東京平均恢復', 'NT$19,480' in page.locator('#sumAvg').inner_text())
 
+    # E2E-07b 無資料航線（福岡）→ 空狀態且圖表隱藏；切回東京恢復
+    p7b, e7b = new_page(browser, viewport={'width': 1280, 'height': 900})
+    p7b.goto(URL + '/web/')
+    wait_chart(p7b)
+    p7b.locator('#routeTabs button[data-route="TPE-FUK"]').click()
+    p7b.wait_for_selector('#emptyBox:not([hidden])', timeout=8000)
+    check('E2E-07b 福岡空狀態顯示', p7b.locator('#emptyBox').is_visible())
+    check('E2E-07b 空狀態下圖表隱藏', p7b.locator('#chart').evaluate('el => el.hidden'))
+    p7b.locator('#routeTabs button[data-route="TPE-NRT"]').click()
+    p7b.wait_for_selector('#chart path.price-line', timeout=8000)
+    check('E2E-07b 切回東京圖表恢復', not p7b.locator('#chart').evaluate('el => el.hidden') and
+          p7b.locator('#emptyBox').evaluate('el => el.hidden'))
+    check('E2E-07b 無 console error', len(e7b) == 0, e7b[:2])
+    p7b.close()
+
     # E2E-17 鍵盤 focus tooltip
     page.locator('#chart circle.dot').first.focus()
     page.wait_for_timeout(250)
@@ -271,6 +286,58 @@ def run_tests(browser):
     check('E2E-08 重試按鈕存在', p8.locator('#retryBtn').count() == 1)
     p8.close()
 
+    # E2E-08b 重試不堆疊 listener
+    # 連點重試，index 請求數 = 1 + 重試次數（重試未生效/雙重觸發都會破壞此數）；
+    # 另以 addEventListener spy 驗證重跑 init 不重複綁定（retry 綁定的是同名函式 init，
+    # 瀏覽器會去重，故請求數測不出綁定堆疊；真正會被堆疊的是 routeTabs/rangeSeg/
+    # flightSel 的匿名 listener，必須直接統計綁定次數）。
+    p8b, e8b = new_page(browser, viewport={'width': 1280, 'height': 900})
+    req8b = {'n': 0}
+    def fail500(route):
+        req8b['n'] += 1
+        route.fulfill(status=500, content_type='application/json', body='{}')
+    p8b.route('**/api/index.json', fail500)
+    # 在 app.js 之前注入 spy：統計各元素 listener 綁定次數
+    p8b.add_init_script("""
+      (function () {
+        const orig = EventTarget.prototype.addEventListener;
+        window.__ael = {};
+        EventTarget.prototype.addEventListener = function (type, cb, opts) {
+          const key = (this.id || this.tagName) + '.' + type;
+          window.__ael[key] = (window.__ael[key] || 0) + 1;
+          return orig.call(this, type, cb, opts);
+        };
+      })();
+    """)
+    p8b.goto(URL + '/web/')
+    p8b.wait_for_selector('#errBox:not([hidden])', timeout=8000)
+    p8b.locator('#retryBtn').click()
+    p8b.wait_for_selector('#errBox:not([hidden])', timeout=8000)
+    p8b.locator('#retryBtn').click()
+    p8b.wait_for_selector('#errBox:not([hidden])', timeout=8000)
+    check('E2E-08b 重試不堆疊 listener', req8b['n'] == 3, f'got {req8b["n"]}')
+    ael = p8b.evaluate('window.__ael')
+    check('E2E-08b 重跑 init 不重複綁定（各控件 listener 仍為 1）',
+          ael.get('routeTabs.click') == 1 and ael.get('rangeSeg.click') == 1 and
+          ael.get('flightSel.change') == 1 and ael.get('retryBtn.click') == 1,
+          repr(ael))
+    # 註：刻意 500 會產生 console error，屬預期，故不檢查
+    p8b.close()
+
+    # E2E-08c 重試成功恢復正常
+    p8c, e8c = new_page(browser, viewport={'width': 1280, 'height': 900})
+    p8c.route('**/api/index.json', lambda route: route.fulfill(
+        status=500, content_type='application/json', body='{}'))
+    p8c.goto(URL + '/web/')
+    p8c.wait_for_selector('#errBox:not([hidden])', timeout=8000)
+    p8c.unroute('**/api/index.json')
+    p8c.locator('#retryBtn').click()
+    p8c.wait_for_selector('#chart path.price-line', timeout=8000)
+    check('E2E-08c 重試成功載入圖表', p8c.locator('#chart path.price-line').count() == 1)
+    check('E2E-08c 重試後互動正常', '顯示 3 個月' in p8c.locator('#chartTitle').inner_text())
+    # 註：首次 500 的 console error 屬預期，故不檢查
+    p8c.close()
+
     # E2E-11 過舊警示（15 天前）
     import datetime
     old = (datetime.datetime.utcnow() - datetime.timedelta(days=15)).strftime('%Y-%m-%dT12:00:00.000Z')
@@ -309,6 +376,32 @@ def run_tests(browser):
     p10.wait_for_timeout(300)
     check('E2E-10 售罄標示', p10.locator('#chart text.sold-out-label').count() >= 1)
     p10.close()
+
+    # E2E-05b XSS 防護：航班號含 HTML（引號突圍）不注入
+    p5b, e5b = new_page(browser, viewport={'width': 1280, 'height': 900})
+    evil = 'x"><img src=x onerror="window.__xss__=1">'
+    evil_trip = mock_trip('2026-08-15', '2026-08-23', [(evil, 32296, 'Available')])
+    evil_trip2 = mock_trip('2026-08-22', '2026-08-30', [('JX 802', 46072, 'Available')])
+    urls5 = ['api/trips/TPE-NRT_2026-08-15_2026-08-23.json',
+             'api/trips/TPE-NRT_2026-08-22_2026-08-30.json']
+    idx5 = mock_index(trips=urls5)
+    def handler5(route):
+        url = route.request.url
+        if '/api/index.json' in url:
+            route.fulfill(status=200, content_type='application/json', body=json.dumps(idx5, ensure_ascii=False))
+        elif '/api/trips/' in url:
+            body = evil_trip if url.endswith('TPE-NRT_2026-08-15_2026-08-23.json') else evil_trip2
+            route.fulfill(status=200, content_type='application/json', body=json.dumps(body, ensure_ascii=False))
+        else:
+            route.continue_()
+    p5b.route('**/api/**', handler5)
+    p5b.goto(URL + '/web/')
+    p5b.wait_for_selector('#chart path.price-line', timeout=8000)
+    p5b.wait_for_timeout(300)
+    check('E2E-05b 航班號 HTML 不注入', p5b.evaluate('window.__xss__') != 1)
+    check('E2E-05b 下拉含該航班選項', p5b.locator('#flightSel option').count() >= 2)
+    check('E2E-05b 無 console/page error', len(e5b) == 0, e5b[:2])
+    p5b.close()
 
     # E2E-14 載入中工具列 disabled（掛起 index 請求 → 頁面必定停在載入中）
     p14a, e14a = new_page(browser, viewport={'width': 1280, 'height': 900})
