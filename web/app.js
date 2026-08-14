@@ -112,9 +112,8 @@
   async function loadRoute(routeId, onProgress) {
     if (routeCache.has(routeId)) return routeCache.get(routeId); // F-13 命中快取
     const token = ++loadToken;
-    // 依 index.trips 檔名前綴篩該航線 URL（值為 'api/trips/TPE-NRT_...'，檔名前綴在路徑內）
-    const prefix = routeId + '_';
-    const urls = INDEX.trips.filter(t => t.includes('/' + prefix));
+    // 依 index.trips 路徑中的航線目錄篩該航線 URL（值為 'api/trips/TPE-NRT/...'，航線在路徑段）
+    const urls = INDEX.trips.filter(t => t.includes('/' + routeId + '/'));
     const tripJsons = await fetchTrips(urls, onProgress, abortCtl.signal);
     if (token !== loadToken) return null; // 過期回應丟棄（F-21）
     const weeks = aggregateWeekly(urls, tripJsons);

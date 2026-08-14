@@ -1,0 +1,65 @@
+{
+  "route_id": "TPE-NRT",
+  "outbound_date": "2027-04-17",
+  "return_date": "2027-04-25",
+  "url": "api/trips/TPE-NRT/2027-04-17_2027-04-25.json",
+  "flights": [
+    {
+      "outbound_flight_no": "JX 800",
+      "airline_code": "JX",
+      "airline_name": "星宇航空",
+      "history": [
+        {
+          "scraped_at": "2026-08-14T12:21:03.000Z",
+          "price_total": 18472,
+          "currency": "TWD",
+          "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-14T16:58:04.000Z",
+          "price_total": 18464,
+          "currency": "TWD",
+          "status": "Available"
+        }
+      ]
+    },
+    {
+      "outbound_flight_no": "JX 802",
+      "airline_code": "JX",
+      "airline_name": "星宇航空",
+      "history": [
+        {
+          "scraped_at": "2026-08-14T12:21:03.000Z",
+          "price_total": 17992,
+          "currency": "TWD",
+          "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-14T16:58:04.000Z",
+          "price_total": 17984,
+          "currency": "TWD",
+          "status": "Available"
+        }
+      ]
+    },
+    {
+      "outbound_flight_no": "JX 804",
+      "airline_code": "JX",
+      "airline_name": "星宇航空",
+      "history": [
+        {
+          "scraped_at": "2026-08-14T12:21:03.000Z",
+          "price_total": 16312,
+          "currency": "TWD",
+          "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-14T16:58:04.000Z",
+          "price_total": 16304,
+          "currency": "TWD",
+          "status": "Available"
+        }
+      ]
+    }
+  ]
+}

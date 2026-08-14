@@ -1,0 +1,46 @@
+{
+  "route_id": "TPE-KIX",
+  "outbound_date": "2027-02-06",
+  "return_date": "2027-02-14",
+  "url": "api/trips/TPE-KIX/2027-02-06_2027-02-14.json",
+  "flights": [
+    {
+      "outbound_flight_no": "JX 820",
+      "airline_code": "JX",
+      "airline_name": "星宇航空",
+      "history": [
+        {
+          "scraped_at": "2026-08-14T12:21:03.000Z",
+          "price_total": 41943,
+          "currency": "TWD",
+          "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-14T16:58:04.000Z",
+          "price_total": 41934,
+          "currency": "TWD",
+          "status": "Available"
+        }
+      ]
+    },
+    {
+      "outbound_flight_no": "JX 822",
+      "airline_code": "JX",
+      "airline_name": "星宇航空",
+      "history": [
+        {
+          "scraped_at": "2026-08-14T12:21:03.000Z",
+          "price_total": 39783,
+          "currency": "TWD",
+          "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-14T16:58:04.000Z",
+          "price_total": 39774,
+          "currency": "TWD",
+          "status": "Available"
+        }
+      ]
+    }
+  ]
+}

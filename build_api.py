@@ -5,7 +5,7 @@
 
   api/index.json                       # 目錄與總覽（消費端從這裡開始）
   api/latest.json                      # 最新快照（每組合保留最新一筆）
-  api/trips/<route>_<dep>_<ret>.json   # 每趟旅程的價格歷史（畫趨勢圖用）
+  api/trips/<route>/<dep>_<ret>.json   # 每趟旅程的價格歷史（畫趨勢圖用）
 
 用法：
     python build_api.py
@@ -85,7 +85,7 @@ def build_trips(records: list[dict]) -> list[dict]:
             "route_id": route_id,
             "outbound_date": dep,
             "return_date": ret,
-            "url": f"api/trips/{route_id}_{dep}_{ret}.json",
+            "url": f"api/trips/{route_id}/{dep}_{ret}.json",
             "flights": flights,
         })
     return out
@@ -124,7 +124,8 @@ def main() -> int:
     write_json(API_DIR / "index.json", index)
     write_json(API_DIR / "latest.json", latest)
     for t in trips:
-        write_json(TRIPS_DIR / f"{t['route_id']}_{t['outbound_date']}_{t['return_date']}.json", t)
+        write_json(TRIPS_DIR / t['route_id'] /
+                    f"{t['outbound_date']}_{t['return_date']}.json", t)
 
     print(f"✅ api/index.json  （{len(files_meta)} 個來源檔，{len(records)} 筆）")
     print(f"✅ api/latest.json （快照 {len(latest)} 筆）")

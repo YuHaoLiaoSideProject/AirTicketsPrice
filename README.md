@@ -24,7 +24,7 @@ fetch_prices.py
 ├── requirements.txt
 ├── .github/workflows/weekly-crawl.yml   # 每週排程
 ├── data/                        # 歷史價格 JSON（自動產生）
-└── docs/tech-decision-機票價格爬蟲-2026-08-14.md  # 決策文件
+└── docs/tech-decisions/機票價格爬蟲-2026-08-14.md  # 決策文件
 ```
 
 ## 🚀 快速開始
@@ -111,7 +111,8 @@ api/
 ├── index.json       # 目錄：來源檔清單、航線、產生時間（從這裡開始）
 ├── latest.json      # 最新快照：每 (航線,去程,回程,班號) 保留最新票價
 └── trips/           # 每趟旅程的價格歷史（畫趨勢圖直接用）
-    └── TPE-NRT_2026-08-22_2026-08-30.json
+    └── TPE-NRT/
+        └── 2026-08-22_2026-08-30.json
 ```
 
 ### 消費端建議流程（轉存 DB）

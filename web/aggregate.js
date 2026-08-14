@@ -107,16 +107,16 @@
   }
 
   /**
-   * 從 trip URL 檔名解析出發/回程日期：`api/trips/{route}_{dep}_{ret}.json`。
+   * 從 trip URL 檔名解析出發/回程日期：`api/trips/{route}/{dep}_{ret}.json`。
    * 缺資料週仍需佔位且排序正確，故日期由 URL 解析。
    * @param {string} url
    * @returns {{ d: string, r: string }}
    */
   function datesFromUrl(url) {
-    const base = String(url).split('/').pop().replace(/\.json$/, ''); // TPE-NRT_2026-08-22_2026-08-30
-    const parts = base.split('_'); // [route, dep, ret]
-    if (parts.length >= 3) {
-      return { d: parts[1], r: parts[2] };
+    const base = String(url).split('/').pop().replace(/\.json$/, ''); // 2026-08-22_2026-08-30
+    const parts = base.split('_'); // [dep, ret]
+    if (parts.length >= 2) {
+      return { d: parts[0], r: parts[1] };
     }
     return { d: null, r: null };
   }

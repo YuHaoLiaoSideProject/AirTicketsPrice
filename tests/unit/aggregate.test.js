@@ -66,9 +66,9 @@ test('F-09 全部航班非 Available → status=sold_out、min=null', () => {
 // ── F-08 / F-20 缺資料週與部分失敗佔位 ──
 test('F-08 缺資料週（trip 檔不存在）→ status=missing、min=null、日期由 URL 解析', () => {
   const urls = [
-    'api/trips/TPE-NRT_2026-08-15_2026-08-23.json',
-    'api/trips/TPE-NRT_2026-08-22_2026-08-30.json', // 此檔缺
-    'api/trips/TPE-NRT_2026-08-29_2026-09-06.json',
+    'api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
+    'api/trips/TPE-NRT/2026-08-22_2026-08-30.json', // 此檔缺
+    'api/trips/TPE-NRT/2026-08-29_2026-09-06.json',
   ];
   const jsons = [tripA, null, tripPartial];
   const weeks = Agg.aggregateWeekly(urls, jsons);
@@ -82,10 +82,10 @@ test('F-08 缺資料週（trip 檔不存在）→ status=missing、min=null、�
 
 test('F-20 部分 trip 失敗 → 失敗週為斷點，其餘週正常', () => {
   const urls = [
-    'api/trips/TPE-NRT_2026-08-15_2026-08-23.json',
-    'api/trips/TPE-NRT_2026-08-22_2026-08-30.json',
-    'api/trips/TPE-NRT_2026-08-29_2026-09-06.json',
-    'api/trips/TPE-NRT_2026-09-05_2026-09-13.json',
+    'api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
+    'api/trips/TPE-NRT/2026-08-22_2026-08-30.json',
+    'api/trips/TPE-NRT/2026-08-29_2026-09-06.json',
+    'api/trips/TPE-NRT/2026-09-05_2026-09-13.json',
   ];
   const jsons = [tripA, null, tripPartial, null];
   const weeks = Agg.aggregateWeekly(urls, jsons);
@@ -103,8 +103,8 @@ test('F-11 hasAnyPrice：空週 / 全缺 / 全無效價 → false；任一有效
   assert.equal(Agg.hasAnyPrice([]), false);
   // trips 全缺（URL 有檔名但載入全失敗）→ 全部 missing、min=null
   const urls = [
-    'api/trips/TPE-FUK_2026-08-15_2026-08-23.json',
-    'api/trips/TPE-FUK_2026-08-22_2026-08-30.json',
+    'api/trips/TPE-FUK/2026-08-15_2026-08-23.json',
+    'api/trips/TPE-FUK/2026-08-22_2026-08-30.json',
   ];
   const allMissing = Agg.aggregateWeekly(urls, [null, null]);
   assert.equal(Agg.hasAnyPrice(allMissing), false);
@@ -241,9 +241,9 @@ test('F-16 detectPeak 區間含邊界；區間外 null', () => {
 // ── F-17 Summary 純計算 ──
 test('F-17 summaryData 最便宜週（範圍內）/ 全域平均 / 旺季高峰', () => {
   const weeks = Agg.aggregateWeekly(
-    ['api/trips/TPE-NRT_2026-08-15_2026-08-23.json',
-     'api/trips/TPE-NRT_2026-08-22_2026-08-30.json',
-     'api/trips/TPE-NRT_2026-08-29_2026-09-06.json'],
+    ['api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
+     'api/trips/TPE-NRT/2026-08-22_2026-08-30.json',
+     'api/trips/TPE-NRT/2026-08-29_2026-09-06.json'],
     [tripA, tripSoldOut, tripPartial]
   );
   const avg = Agg.globalAverage(weeks);
@@ -260,8 +260,8 @@ test('F-17 summaryData 最便宜週（範圍內）/ 全域平均 / 旺季高峰'
 // ── 聚合輸出排序（aggregateWeekly 依出發日期排序）──
 test('aggregateWeekly 輸出依出發日期排序（不依傳入順序）', () => {
   const urls = [
-    'api/trips/TPE-NRT_2026-08-22_2026-08-30.json',
-    'api/trips/TPE-NRT_2026-08-15_2026-08-23.json',
+    'api/trips/TPE-NRT/2026-08-22_2026-08-30.json',
+    'api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
   ];
   const jsons = [tripSoldOut, tripA];
   const weeks = Agg.aggregateWeekly(urls, jsons);

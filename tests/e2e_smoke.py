@@ -58,17 +58,17 @@ MOCK_WEEKS = [
     mock_trip('2026-09-05', '2026-09-13', [('JX 800', 15862, 'Available'), ('JX 802', 14853, 'Available')]),
     mock_trip('2026-09-12', '2026-09-20', [('JX 800', 17638, 'Available'), ('JX 802', 16546, 'Available')]),
 ]
-MOCK_TRIP_URLS = ['api/trips/TPE-NRT_2026-08-15_2026-08-23.json',
-                  'api/trips/TPE-NRT_2026-08-22_2026-08-30.json',
-                  'api/trips/TPE-NRT_2026-08-29_2026-09-06.json',
-                  'api/trips/TPE-NRT_2026-09-05_2026-09-13.json',
-                  'api/trips/TPE-NRT_2026-09-12_2026-09-20.json']
+MOCK_TRIP_URLS = ['api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
+                  'api/trips/TPE-NRT/2026-08-22_2026-08-30.json',
+                  'api/trips/TPE-NRT/2026-08-29_2026-09-06.json',
+                  'api/trips/TPE-NRT/2026-09-05_2026-09-13.json',
+                  'api/trips/TPE-NRT/2026-09-12_2026-09-20.json']
 
 
 def mock_index(generated_at='2026-08-14T12:00:00.000Z', trips=None, include_soldout_week=False):
     tl = list(trips) if trips is not None else list(MOCK_TRIP_URLS)
     if include_soldout_week:
-        tl.append('api/trips/TPE-NRT_2026-09-05_2026-09-13.json')
+        tl.append('api/trips/TPE-NRT/2026-09-05_2026-09-13.json')
     return {'generated_at': generated_at, 'routes': ['TPE-NRT', 'TPE-KIX'], 'trips': tl,
             'trip_count': len(tl), 'latest_file': 'mock.json'}
 
@@ -76,7 +76,7 @@ def mock_index(generated_at='2026-08-14T12:00:00.000Z', trips=None, include_sold
 def mock_trip_map(include_soldout_week=False):
     m = {u: t for u, t in zip(MOCK_TRIP_URLS, MOCK_WEEKS)}
     if include_soldout_week:
-        m['api/trips/TPE-NRT_2026-09-05_2026-09-13.json'] = mock_trip(
+        m['api/trips/TPE-NRT/2026-09-05_2026-09-13.json'] = mock_trip(
             '2026-09-05', '2026-09-13',
             [('JX 800', None, 'SoldOut'), ('JX 802', None, 'SoldOut')])
     return m
@@ -183,10 +183,10 @@ def run_tests(browser):
         cond = f'顯示 {label}' in t and f'共 {weeks} 週' in t
         check(f'E2E-06 {label} 標題範圍與週數', cond, repr(t))
 
-    # E2E-20 每週最低價 = 圖表點最低價（真實資料 09/19 週 = 14,139）
+    # E2E-20 每週最低價 = 圖表點最低價（真實資料 09/19 週 = 14,131，20260815 快照更新）
     page.locator('#rangeSeg button[data-range="all"]').click()
     page.wait_for_timeout(250)
-    check('E2E-20 Summary 最便宜 = 全域最低 14,139', 'NT$14,139' in page.locator('#sumMin').inner_text())
+    check('E2E-20 Summary 最便宜 = 全域最低 14,131', 'NT$14,131' in page.locator('#sumMin').inner_text())
 
     # E2E-21 平均線不隨範圍漂移
     page.locator('#rangeSeg button[data-range="3m"]').click()
@@ -194,7 +194,7 @@ def run_tests(browser):
     page.locator('#rangeSeg button[data-range="all"]').click()
     page.wait_for_timeout(250)
     avg_label = page.locator('#chart text.avg-label').text_content()
-    check('E2E-21 平均線標籤 = NT$19,480（全域）', 'NT$19,480' in avg_label, avg_label)
+    check('E2E-21 平均線標籤 = NT$19,596（全域）', 'NT$19,596' in avg_label, avg_label)
 
     # E2E-22 Summary 隨範圍更新（3m 無旺季週 vs all 有櫻花季）
     page.locator('#rangeSeg button[data-range="3m"]').click()
@@ -215,15 +215,24 @@ def run_tests(browser):
     t = page.locator('#chartTitle').inner_text()
     check('E2E-07 切大阪航班回退 all', '每週最低價' in t, t)
     check('E2E-07 範圍保留 24 週', '共 24 週' in t, t)
-    check('E2E-07 大阪平均 20,240', 'NT$20,240' in page.locator('#sumAvg').inner_text())
+    check('E2E-07 大阪平均 20,270', 'NT$20,270' in page.locator('#sumAvg').inner_text())
 
     # E2E-16 快取：切回東京不重複下載 trips
     page.locator('#routeTabs button[data-route="TPE-NRT"]').click()
     page.wait_for_timeout(800)
-    check('E2E-16 切回東京平均恢復', 'NT$19,480' in page.locator('#sumAvg').inner_text())
+    check('E2E-16 切回東京平均恢復', 'NT$19,596' in page.locator('#sumAvg').inner_text())
 
-    # E2E-07b 無資料航線（福岡）→ 空狀態且圖表隱藏；切回東京恢復
+    # E2E-07b 無資料航線（福岡 trip 全缺 mock）→ 空狀態且圖表隱藏；切回東京恢復
     p7b, e7b = new_page(browser, viewport={'width': 1280, 'height': 900})
+
+    def handler7b(route):
+        url = route.request.url
+        if '/api/trips/' in url and 'TPE-FUK' in url:
+            route.fulfill(status=404, body='not found')
+        else:
+            route.continue_()
+
+    p7b.route('**/api/**', handler7b)
     p7b.goto(URL + '/web/')
     wait_chart(p7b)
     p7b.locator('#routeTabs button[data-route="TPE-FUK"]').click()
@@ -244,17 +253,18 @@ def run_tests(browser):
           p7b.locator('#chart').evaluate('el => getComputedStyle(el).display !== "none"') and
           p7b.locator('#emptyBox').evaluate('el => el.hidden'))
     check('E2E-07b 切回東京 Summary 恢復可見', not p7b.locator('#summary').evaluate('el => el.hidden'))
-    check('E2E-07b 無 console error', len(e7b) == 0, e7b[:2])
+    check('E2E-07b 無 console error', len([e for e in e7b if '404' not in e]) == 0,
+          [e for e in e7b if '404' not in e][:2])
     p7b.close()
 
     # E2E-07c 航線有 trip 檔但全部載入失敗（全缺週）→ 空狀態；切範圍後仍保持空狀態
     # （回歸：此情境原本會渲染空網格圖表 =「沒資料但顯示圖表」，修正後必須顯示空狀態）
     p7c, e7c = new_page(browser, viewport={'width': 1280, 'height': 900})
-    kix_urls = ['api/trips/TPE-KIX_2026-08-15_2026-08-23.json',
-                'api/trips/TPE-KIX_2026-08-22_2026-08-30.json',
-                'api/trips/TPE-KIX_2026-08-29_2026-09-06.json',
-                'api/trips/TPE-KIX_2026-09-05_2026-09-13.json',
-                'api/trips/TPE-KIX_2026-09-12_2026-09-20.json']
+    kix_urls = ['api/trips/TPE-KIX/2026-08-15_2026-08-23.json',
+                'api/trips/TPE-KIX/2026-08-22_2026-08-30.json',
+                'api/trips/TPE-KIX/2026-08-29_2026-09-06.json',
+                'api/trips/TPE-KIX/2026-09-05_2026-09-13.json',
+                'api/trips/TPE-KIX/2026-09-12_2026-09-20.json']
     idx7c = mock_index(trips=MOCK_TRIP_URLS + kix_urls)
 
     def handler7c(route):
@@ -418,7 +428,7 @@ def run_tests(browser):
 
     # E2E-09 缺資料週（mock 5 週，缺第 3 週 → gap-dot，兩側仍有連續點）
     p9, e9 = new_page(browser, viewport={'width': 1280, 'height': 900})
-    route_mock_api(p9, index=mock_index(), missing_url='TPE-NRT_2026-08-29_2026-09-06.json')
+    route_mock_api(p9, index=mock_index(), missing_url='TPE-NRT/2026-08-29_2026-09-06.json')
     p9.goto(URL + '/web/')
     p9.wait_for_selector('#chart path.price-line', state='attached', timeout=8000)
     p9.wait_for_timeout(300)
@@ -439,15 +449,15 @@ def run_tests(browser):
     evil = 'x"><img src=x onerror="window.__xss__=1">'
     evil_trip = mock_trip('2026-08-15', '2026-08-23', [(evil, 32296, 'Available')])
     evil_trip2 = mock_trip('2026-08-22', '2026-08-30', [('JX 802', 46072, 'Available')])
-    urls5 = ['api/trips/TPE-NRT_2026-08-15_2026-08-23.json',
-             'api/trips/TPE-NRT_2026-08-22_2026-08-30.json']
+    urls5 = ['api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
+             'api/trips/TPE-NRT/2026-08-22_2026-08-30.json']
     idx5 = mock_index(trips=urls5)
     def handler5(route):
         url = route.request.url
         if '/api/index.json' in url:
             route.fulfill(status=200, content_type='application/json', body=json.dumps(idx5, ensure_ascii=False))
         elif '/api/trips/' in url:
-            body = evil_trip if url.endswith('TPE-NRT_2026-08-15_2026-08-23.json') else evil_trip2
+            body = evil_trip if url.endswith('TPE-NRT/2026-08-15_2026-08-23.json') else evil_trip2
             route.fulfill(status=200, content_type='application/json', body=json.dumps(body, ensure_ascii=False))
         else:
             route.continue_()

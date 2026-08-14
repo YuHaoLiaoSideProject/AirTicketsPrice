@@ -1,0 +1,21 @@
+{
+  "route_id": "TPE-FUK",
+  "outbound_date": "2027-03-20",
+  "return_date": "2027-03-28",
+  "url": "api/trips/TPE-FUK/2027-03-20_2027-03-28.json",
+  "flights": [
+    {
+      "outbound_flight_no": "JX 840",
+      "airline_code": "JX",
+      "airline_name": "星宇航空",
+      "history": [
+        {
+          "scraped_at": "2026-08-14T16:58:04.000Z",
+          "price_total": 19248,
+          "currency": "TWD",
+          "status": "Available"
+        }
+      ]
+    }
+  ]
+}
