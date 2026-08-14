@@ -27,6 +27,12 @@
           "price_total": 31575,
           "currency": "TWD",
           "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-14T16:58:04.000Z",
+          "price_total": 31566,
+          "currency": "TWD",
+          "status": "Available"
         }
       ]
     }
