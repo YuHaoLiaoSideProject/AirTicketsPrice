@@ -91,16 +91,22 @@
   function renderSubUI(permission, subscription, flow) {
     // 離線 → 不顯示 unavailable（還原本機三態，E1 本機真相優先）；線上才以 vapidReady 判服務可用性（E3）
     const vapidReady = navigator.onLine ? !!vapidKey : true;
-    const ui = Pwa.subscriptionUI(permission, subscription, { vapidReady });
-    const override = flow && FLOW_OVERRIDE_STATES.includes(flow.state);
+    const loading = !!(flow && flow.state === 'loading');     // 流程中：點擊後立即回饋，不等 async（F-22 UI 層防連點）
+    const ui = Pwa.subscriptionUI(permission, subscription, {
+      vapidReady,
+      ...(loading ? { state: 'loading' } : {}),
+    });
+    const override = flow && (FLOW_OVERRIDE_STATES.includes(flow.state) || loading);
     const state = override ? flow.state : ui.state;
     const hint = override ? (flow.hint || ui.hint) : ui.hint;
     subBtn.hidden = false;
-    subBtn.textContent = ui.buttonLabel;                     // 開啟票價提醒 / 關閉票價提醒
-    subBtn.disabled = !vapidKey || state === 'loading';      // E3 停用
+    subBtn.textContent = ui.buttonLabel;                     // 開啟票價提醒 / 處理中… / 關閉票價提醒
+    subBtn.disabled = !vapidKey || state === 'loading';      // E3 停用；loading 期間鎖定防連點
+    subBtn.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');  // 無障礙：處理中狀態
     subStatus.hidden = !hint;
     subStatus.textContent = hint || '';
     subBtn.classList.toggle('subscribed', state === 'subscribed');   // §7 .sub-toggle.subscribed
+    subBtn.classList.toggle('loading', state === 'loading');         // §7 spinner（點擊後立即回饋）
     subStatus.classList.toggle('warn', state === 'denied' || state === 'error');
     subStatus.classList.toggle('unavailable', state === 'unavailable');  // E3（§7 .sub-status.unavailable）
   }
@@ -126,6 +132,8 @@
 
   subBtn.addEventListener('click', async () => {
     // user gesture：訂閱或退訂（D5 唯一 requestPermission 入口；F-06）
+    // ① 立即回饋：先渲染「處理中…」loading（async 鏈需 1~2s；不讓按鈕無反應）
+    renderSubUI(Notification.permission, null, { state: 'loading' });
     try {
       const reg = await navigator.serviceWorker.ready;
       const existing = await reg.pushManager.getSubscription();

@@ -178,6 +178,15 @@ body {
   border: 1px solid var(--success-border);
 }
 .sub-toggle:disabled { opacity: 0.55; cursor: not-allowed; }   /* E3 停用 */
+/* 流程中 loading：點擊後立即回饋（不等 async 1~2s）；spinner + 不淡化（disabled 時仍清晰） */
+.sub-toggle.loading { opacity: 1; cursor: progress; }
+.sub-toggle.loading::before {
+  content: ''; display: inline-block; width: 0.85em; height: 0.85em;
+  margin-right: 0.4rem; vertical-align: -0.12em;
+  border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: sub-spin 0.7s linear infinite;
+}
+@keyframes sub-spin { to { transform: rotate(360deg); } }
 
 /* ═══ 訂閱狀態提示（.sub-status；Phase 2 / T9 預留）═══ */
 .sub-status {
