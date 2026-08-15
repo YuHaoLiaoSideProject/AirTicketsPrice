@@ -809,7 +809,7 @@ standalone（含 iOS navigator.standalone）→ 安裝按鈕與 hint 皆隱藏�
 | # | 情境 | 系統行為 | 對應 BDD / 測試 |
 |---|------|---------|----------------|
 | E1 | 權限被封鎖（denied） | 顯示拒絕引導「通知已封鎖，請到瀏覽器網站設定中允許通知」；不重複 requestPermission；設定允許後回頁面重按 → 重跑訂閱流程 | @error p0 / F-05d, F-11, E2E-15, MAN-05 |
-| E2 | 訂閱失敗（subscribe 拋錯 / /subscribe 非 2xx） | 狀態「訂閱失敗，請稍後重試」；subscribe 拋 `AbortError`（瀏覽器連不上推播服務，VPN／公司防火牆常見）→「通知服務連線失敗，請確認網路後重試（若使用 VPN／公司網路，關閉或切換後再試）」；按鈕可重試；圖表/航線/離線完全不受影響 | @error p0 / F-09, E2E-16 |
+| E2 | 訂閱失敗（subscribe 拋錯 / /subscribe 非 2xx） | 狀態「訂閱失敗，請稍後重試」；subscribe 拋 `AbortError`（瀏覽器連不上推播服務，VPN／公司網路／擋廣告擴充如 Brave Shields 常見）→「通知服務連線失敗，請確認網路後重試（VPN／公司網路／擋廣告擴充如 Brave Shields 常阻擋推播服務）」；按鈕可重試；圖表/航線/離線完全不受影響 | @error p0 / F-09, E2E-16 |
 | E3 | VAPID 公鑰取得失敗（Worker 未部署/掛掉） | `fetchVapidPublicKey` 回 null → 按鈕停用＋「提醒功能暫時不可用」；其餘功能正常；下次載入恢復 | @error p0 / F-10, E2E-17 |
 | E4 | 權限詢問被忽略（關閉詢問框） | 狀態維持「未訂閱」、無錯誤提示；再點按鈕重新彈詢問 | @error p1 / F-12, E2E-18 |
 | E5 | 訂閱過期（push service 404/410） | Worker 廣播時自動刪除失效訂閱；下次開啟 `getSubscription()` 空 → 「未訂閱」→ 重新訂閱恢復 | @error p1 / HDL-07, F-20, E2E-19 |

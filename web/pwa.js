@@ -379,11 +379,13 @@
           return { state: 'error', hint: '通知權限未允許；iOS 請先「加到主畫面」安裝後再試' };
         }
         if (e && e.name === 'AbortError') {
-          // 診斷：瀏覽器連不上自家推播服務（Chrome/Edge=FCM、Firefox=Mozilla push、Safari=APNs）；
-          // 常見於 VPN 出口／公司防火牆／ad-blocker 擋 Google。macOS Safari 未加到 Dock 亦會以 AbortError 失敗
-          //（正常情境已由 macSafariGate F-29 先行阻擋）。
-          console.warn('[pwa] push subscribe AbortError：瀏覽器無法連上推播服務（Chrome/Edge=FCM、Firefox=Mozilla push、Safari=APNs；VPN／防火牆常導致）');
-          return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試（若使用 VPN／公司網路，關閉或切換後再試）' };
+          // 診斷：瀏覽器連不上自家推播服務（Chrome/Edge/Brave=FCM、Firefox=Mozilla push、Safari=APNs）；
+          // 常見於 VPN 出口／公司防火牆／擋廣告擴充（Brave Shields 等）擋 Google 網域。
+          // macOS Safari 未加到 Dock 亦會以 AbortError 失敗（正常情境已由 macSafariGate F-29 先行阻擋）。
+          console.warn('[pwa] push subscribe AbortError：瀏覽器無法連上推播服務（Chrome/Edge/Brave=FCM）。'
+            + '診斷：在瀏覽器開啟 https://fcmregistrations.googleapis.com/ 與 https://fcm.googleapis.com/ 確認未被擋'
+            + '（VPN／公司網路／擋廣告擴充如 Brave Shields 為常見原因）');
+          return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試（VPN／公司網路／擋廣告擴充如 Brave Shields 常阻擋推播服務）' };
         }
         return { state: 'error', hint: '訂閱失敗，請稍後重試' };
       }

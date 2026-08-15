@@ -170,7 +170,7 @@ Feature: PWA 可安裝與推播通知
     And 瀏覽器無法連上自家推播服務（FCM／Mozilla push，常見於 VPN 出口或公司防火牆）
     When 系統嘗試建立訂閱並收到 AbortError
     Then 狀態顯示「通知服務連線失敗，請確認網路後重試」
-    And 提示包含「VPN／公司網路」可操作說明
+    And 提示包含「VPN／公司網路／擋廣告」可操作說明
     And 按鈕可再次點擊重試
     And 頁面瀏覽與圖表功能完全不受影響
 

@@ -761,6 +761,7 @@ test('E2 分類：subscribe NotAllowedError → iOS 未安裝提示；AbortError
   const a = await Pwa.subscribeFlow(mkFlowDeps({ subscribe: async () => { throw new DOMException('x', 'AbortError'); } }));
   assert.equal(a.state, 'error');
   assert.ok(a.hint.includes('通知服務連線失敗'), a.hint);
+  assert.ok(a.hint.includes('Shields'), 'AbortError 提示應點名擋廣告擴充（Brave Shields）情境');
   const g = await Pwa.subscribeFlow(mkFlowDeps({ subscribe: async () => { throw new Error('boom'); } }));
   assert.equal(g.state, 'error');
   assert.equal(g.hint, '訂閱失敗，請稍後重試');
