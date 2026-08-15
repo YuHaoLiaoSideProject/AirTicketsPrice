@@ -408,6 +408,8 @@ def make_icon(size: int, maskable: bool) -> Image.Image:
    *    requestPermission, subscribe, postSubscribe }
    *  ① user gesture 守衛（F-06）② iOS 且非 standalone → 顯示「需加到主畫面後才收得到通知」，不發權限請求（E8 / F-13）
    *  ②' iOS <16.4 → 顯示限制提示（BDD @edge-case / EC6）
+   *  ②'' macOS Safari 非 standalone → 顯示「需加到 Dock（程式塢）後才收得到通知」，不發權限請求（F-29 / E8 桌機；
+   *      Safari desktop 未安裝時 subscribe 會以 AbortError 失敗，誤導為網路問題）
    *  ③ Notification.requestPermission() → 'granted' → PushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 公鑰 })
    *  ④ POST /subscribe {endpoint, keys, action:'add'}（免 token，T9）成功 → 狀態 'subscribed'；失敗 → 'error'（F-09）
    *  防重入：subscribing 旗標，流程中忽略重複點擊（F-22）；頁面中止 → 無殘留狀態（F-23） */
@@ -807,13 +809,14 @@ standalone（含 iOS navigator.standalone）→ 安裝按鈕與 hint 皆隱藏�
 | # | 情境 | 系統行為 | 對應 BDD / 測試 |
 |---|------|---------|----------------|
 | E1 | 權限被封鎖（denied） | 顯示拒絕引導「通知已封鎖，請到瀏覽器網站設定中允許通知」；不重複 requestPermission；設定允許後回頁面重按 → 重跑訂閱流程 | @error p0 / F-05d, F-11, E2E-15, MAN-05 |
-| E2 | 訂閱失敗（subscribe 拋錯 / /subscribe 非 2xx） | 狀態「訂閱失敗，請稍後重試」；按鈕可重試；圖表/航線/離線完全不受影響 | @error p0 / F-09, E2E-16 |
+| E2 | 訂閱失敗（subscribe 拋錯 / /subscribe 非 2xx） | 狀態「訂閱失敗，請稍後重試」；subscribe 拋 `AbortError`（瀏覽器連不上推播服務，VPN／公司防火牆常見）→「通知服務連線失敗，請確認網路後重試（若使用 VPN／公司網路，關閉或切換後再試）」；按鈕可重試；圖表/航線/離線完全不受影響 | @error p0 / F-09, E2E-16 |
 | E3 | VAPID 公鑰取得失敗（Worker 未部署/掛掉） | `fetchVapidPublicKey` 回 null → 按鈕停用＋「提醒功能暫時不可用」；其餘功能正常；下次載入恢復 | @error p0 / F-10, E2E-17 |
 | E4 | 權限詢問被忽略（關閉詢問框） | 狀態維持「未訂閱」、無錯誤提示；再點按鈕重新彈詢問 | @error p1 / F-12, E2E-18 |
 | E5 | 訂閱過期（push service 404/410） | Worker 廣播時自動刪除失效訂閱；下次開啟 `getSubscription()` 空 → 「未訂閱」→ 重新訂閱恢復 | @error p1 / HDL-07, F-20, E2E-19 |
 | E6 | /notify 401（token 失效） | Worker 拒絕（401）不發送；使用者端無影響；workflow notify step 標記失敗但資料已 commit；輪換 token 後下週恢復 | @error p1 / HDL-05, SYS-11, E2E-20, MAN-15 |
 | E7 | KV 無訂閱者 | `/notify` 回 200 空廣播；0 次 Web Push、無錯誤 | @error p2 / HDL-06, E2E-21 |
 | E8 | iOS 未加到主畫面就訂閱 | 顯示「需加到主畫面後才收得到通知」；不發權限請求（requestPermission 呼叫數 = 0）；加到主畫面後再點 → 正常流程 | @error p1 / F-13, E2E-22, MAN-06 |
+| E8b | macOS Safari 未加到 Dock 就訂閱 | 顯示「需加到 Dock（程式塢）後才收得到通知」；不發權限請求（requestPermission 呼叫數 = 0）；加到 Dock 後再點 → 正常流程（修「通知服務連線失敗」誤導） | @error p1 / F-29 |
 | E9 | 離線點通知且目標航線未快取 | 沿用離線功能 E2 語意：「此航線尚未下載，需連網」提示、停留原航線；不白屏、不出錯誤卡 | @error p1 / INT-01, E2E-23 |
 | E10 | 通知對應分頁已開啟 | 聚焦既有分頁並 `navigate` 切換到通知航線；分頁數不增加 | @error p1 / INT-03, E2E-24 |
 | E11 | 下降航班超過 3 條 | `select_top_drops`（爬蟲）＋ `slice(0,3)`（Worker 防禦）→ 只發下降幅度最大 3 條合併單則摘要（body 3 行） | @error p0 / SYS-04, SYS-05, E2E-25 |

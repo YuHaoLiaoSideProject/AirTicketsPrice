@@ -4,9 +4,10 @@
  * 職責：
  *  - 安裝按鈕狀態機（beforeinstallprompt deferred prompt 暫存、重入防護）
  *  - standalone 判定輔助（shouldShowInstall：非 standalone 且可安裝才顯示）
- *  - iOS UA／版本判定（isIOS / iosVersionAtLeast，供「加到主畫面」hint 與訂閱 iOS 限制提示）
+ *  - iOS／macOS Safari UA／版本判定（isIOS / iosVersionAtLeast / isMacSafari，供「加到主畫面／Dock」
+ *    hint 與訂閱平台限制提示）
  *  - 訂閱狀態機與流程（subscriptionUI / fetchVapidPublicKey / subscribeFlow / unsubscribeFlow /
- *    shouldRequestPermission / iosSubscribeGate；user gesture 防護、防重入 F-22）
+ *    shouldRequestPermission / iosSubscribeGate / macSafariGate；user gesture 防護、防重入 F-22）
  *  - 通知純函式（resolveNotificationUrl / findNotificationTarget / formatNotification）
  *
  * UMD 匯出：瀏覽器掛全域 `Pwa`；Node（node:test）走 module.exports（對齊 cache.js / aggregate.js）。
@@ -149,6 +150,19 @@
   }
 
   /**
+   * macOS Safari 判定（F-29）：UA 含 'Macintosh' + 'Safari/' 且**不含** Chrome／Edge 標記
+   * （Chrome/Edge on macOS 的 UA 亦含 Safari/537.36，須排除；Firefox UA 無 'Safari/' → false）。
+   * ⚠️ EC9 同 iOS：iPadOS 13+ 桌面模式偽裝 Mac UA 也會命中 → 依 macSafariGate 語意視為「需安裝」提示（可接受）。
+   * Safari desktop 的 Web Push 僅限「加到 Dock」安裝後（與 iOS 加到主畫面 E8 同語意）。
+   * @param {string} ua - navigator.userAgent
+   * @returns {boolean}
+   */
+  function isMacSafari(ua) {
+    const u = ua || '';
+    return /Macintosh/.test(u) && /Safari\//.test(u) && !/Chrome\/|CriOS\/|Edg\//.test(u);
+  }
+
+  /**
    * iOS 版本 ≥ (major, minor)：解析 UA 'CPU iPhone OS 17_5 like Mac OS X' 或 iPad 'CPU OS 16_4 ...'（F-21）。
    * 解析失敗（非 iOS／缺版本）→ false（保守）。<16.4 → 訂閱時顯示 iOS 推播限制提示（EC6）。
    * @param {string} ua - navigator.userAgent
@@ -229,6 +243,23 @@
   }
 
   /**
+   * macOS Safari 訂閱限制判定（F-29 / E8 桌機對應）：Safari desktop 的 Web Push 僅支援
+   * 「加到 Dock（程式塢）」安裝的 web app；一般 Safari 分頁呼叫 pushManager.subscribe()
+   * 會以 AbortError 等失敗（畫面誤導為網路問題，電腦版「通知服務連線失敗」即此情境）。
+   * 非 standalone → 阻擋並提示，不發權限請求（與 E8 同語意）；已加到 Dock（standalone）→ 不阻擋。
+   * @param {string} ua - navigator.userAgent
+   * @param {boolean} standalone - 是否以 standalone（加到 Dock）模式執行
+   * @returns {{blocked: boolean, state?: string, hint: string}}
+   */
+  function macSafariGate(ua, standalone) {
+    if (!isMacSafari(ua)) return { blocked: false, hint: '' };
+    if (!standalone) {
+      return { blocked: true, state: 'macos-required', hint: '需加到 Dock（程式塢）後才收得到通知' };  // E8 桌機
+    }
+    return { blocked: false, hint: '' };
+  }
+
+  /**
    * VAPID 公鑰抓取（E3 / F-10b）：GET {PUSH_WORKER_URL}/vapid-public-key → base64url 字串。
    * 失敗（HTTP 非 2xx / 壞 shape / 網路錯）→ null（app.js 停用按鈕＋「提醒功能暫時不可用」）。
    * ⚠️ 未部署（CONFIG.PUSH_WORKER_URL 仍為占位網域）→ 直接回 null，不發無意義請求（§9.4）。
@@ -301,7 +332,7 @@
 
   /**
    * 訂閱流程（F-06/F-07/F-09/F-11/F-12/F-13/EC6/F-22/F-23）：**僅在按鈕 click（user gesture）handler 內呼叫**。
-   * ① user gesture 守衛（F-06）② iOS 限制判定（E8/EC6，不發權限請求）③ 權限（E1 不重複；E4 忽略無錯誤）
+   * ① user gesture 守衛（F-06）② iOS／macOS Safari 限制判定（E8/EC6/F-29，不發權限請求）③ 權限（E1 不重複；E4 忽略無錯誤）
    * ④ VAPID 公鑰（E3）⑤ PushManager.subscribe({userVisibleOnly, applicationServerKey})（E2 失敗分支）
    * ⑥ POST /subscribe {endpoint, keys, action:'add'}（免 token；Worker 以 Origin 白名單 + 格式驗證保護，T9）
    * 防重入：模組級 `_subscribing` 旗標，流程中忽略重複呼叫（F-22）；finally 清除（F-23 無殘留狀態）。
@@ -316,6 +347,8 @@
     const d = Object.assign(browserDeps(), deps || {});
     const gate = iosSubscribeGate(d.ua, d.standalone);
     if (gate.blocked) return { state: gate.state, hint: gate.hint };                       // E8 / EC6
+    const macGate = macSafariGate(d.ua, d.standalone);
+    if (macGate.blocked) return { state: macGate.state, hint: macGate.hint };              // F-29：macOS Safari 未加到 Dock
     if (!shouldRequestPermission(d.permission)) {                                          // E1：denied 不重複詢問
       return { state: 'denied', hint: '通知已封鎖，請到瀏覽器網站設定中允許通知' };
     }
@@ -346,7 +379,11 @@
           return { state: 'error', hint: '通知權限未允許；iOS 請先「加到主畫面」安裝後再試' };
         }
         if (e && e.name === 'AbortError') {
-          return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試' };
+          // 診斷：瀏覽器連不上自家推播服務（Chrome/Edge=FCM、Firefox=Mozilla push、Safari=APNs）；
+          // 常見於 VPN 出口／公司防火牆／ad-blocker 擋 Google。macOS Safari 未加到 Dock 亦會以 AbortError 失敗
+          //（正常情境已由 macSafariGate F-29 先行阻擋）。
+          console.warn('[pwa] push subscribe AbortError：瀏覽器無法連上推播服務（Chrome/Edge=FCM、Firefox=Mozilla push、Safari=APNs；VPN／防火牆常導致）');
+          return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試（若使用 VPN／公司網路，關閉或切換後再試）' };
         }
         return { state: 'error', hint: '訂閱失敗，請稍後重試' };
       }
@@ -498,6 +535,8 @@
     shouldShowInstall,
     isIOS,
     iosVersionAtLeast,
+    isMacSafari,
+    macSafariGate,
     subscriptionUI,
     shouldRequestPermission,
     iosSubscribeGate,

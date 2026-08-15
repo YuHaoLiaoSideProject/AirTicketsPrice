@@ -115,6 +115,7 @@
 | F-11 | 權限 denied → 拒絕引導、不重複詢問（BDD: E1） | requestPermission 回 'denied' | 執行 subscribeFlow 失敗分支 | 顯示拒絕引導文案；不再次 requestPermission；使用者到設定允許後重新點按鈕 → 重跑訂閱流程（F-11b） |
 | F-12 | 權限詢問被忽略 → 維持未訂閱、無錯誤（BDD: E4） | requestPermission 被關閉（無結果） | 執行 subscribeFlow | 狀態維持「未訂閱」；不顯示任何錯誤提示；再點按鈕 → 重新 requestPermission |
 | F-13 | iOS 未安裝 → 提示且不發權限請求（BDD: E8） | iOS UA 且非 standalone | 點「開啟票價提醒」 | 顯示「需加到主畫面後才收得到通知」提示；不呼叫 requestPermission；加到主畫面後再點 → 正常訂閱流程（F-13b） |
+| F-29 | macOS Safari 未加到 Dock → 提示且不發權限請求（BDD: E8b，桌機版） | macOS Safari UA 且非 standalone | 點「開啟票價提醒」 | 顯示「需加到 Dock（程式塢）後才收得到通知」提示；不呼叫 requestPermission；加到 Dock 後再點 → 正常訂閱流程（F-29d；修電腦版「通知服務連線失敗」誤導） |
 
 ### 4.3 SW 通知處理（Phase 2）
 
@@ -215,6 +216,8 @@
 | E2E-20 | notify 401 資料照常提交（E6 @error @p1） | 以錯誤 token 呼叫 mock /notify（回 401）；爬蟲資料已於呼叫前寫入 | 通知不發送（0 次 Web Push）；爬蟲資料仍提交（data/ api/ 產出不受影響）；workflow 該步驟標記失敗（CI 層面驗證見 MAN-15） |
 | E2E-21 | 空訂閱者空廣播（E7 @error @p2） | mock KV 無訂閱者 → 呼叫 /notify | mock /notify 回 200（空廣播）；0 次 Web Push 發送、無錯誤 |
 | E2E-22 | iOS 未安裝提示且不發權限請求（E8 @error @p1） | iPhone UA、非 standalone → 點「開啟票價提醒」 | 顯示「需加到主畫面後才收得到通知」；requestPermission 呼叫數 = 0；改以 standalone 開啟後再點 → 正常訂閱流程 |
+| E2E-22b | macOS Safari 未加到 Dock 提示且不發權限請求（E8b @error @p1，F-29） | macOS Safari UA、非 standalone → 點「開啟票價提醒」 | 顯示「需加到 Dock（程式塢）後才收得到通知」；requestPermission 呼叫數 = 0；改以 standalone 開啟後再點 → 正常訂閱流程（E2E-12b） |
+| E2E-12b | macOS Safari 已加到 Dock 可訂閱（F-29d @p1） | macOS Safari UA + standalone → 點「開啟票價提醒」→ 同意 → subscribe 成功 | 執行權限詢問並建立訂閱（與一般流程相同）；訂閱成功狀態「已訂閱」 |
 | E2E-23 | 離線點通知目標航線未快取（E9 @error @p1） | 已訂閱但未快取大阪；set_offline(true) → 點通知（route=TPE-KIX） | 頁面顯示「此航線尚未下載，需連網」提示；停留原航線；不白屏、不跳出錯誤卡 |
 | E2E-24 | 分頁已開啟聚焦既有分頁（E10 @error @p1） | 已有分頁開啟但顯示其他航線 → 點通知（route=TPE-NRT） | 聚焦既有分頁並切換到東京航線；分頁總數不增加 |
 | E2E-25 | 下降超過 3 條只發 3 條（E11 @error @p0） | dispatchPushEvent（drops 5 筆，幅度不同） | 通知只含下降幅度最大的 3 條（body 3 行）；其餘 2 條不發送 |

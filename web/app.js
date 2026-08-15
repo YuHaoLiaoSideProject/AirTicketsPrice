@@ -82,7 +82,7 @@
   let vapidKey = null;                        // VAPID 公鑰快取（E3 失敗 → null → 按鈕停用）
 
   /** 流程暫時性結果（覆寫自然三態：E1/E2/E8/EC6/E3） */
-  const FLOW_OVERRIDE_STATES = ['denied', 'error', 'ios-required', 'ios-unsupported', 'unavailable'];
+  const FLOW_OVERRIDE_STATES = ['denied', 'error', 'ios-required', 'ios-unsupported', 'macos-required', 'unavailable'];
 
   /**
    * 訂閱 UI 渲染（F-05a~d / F-10 / F-20 / F-26）：

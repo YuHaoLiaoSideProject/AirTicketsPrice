@@ -433,6 +433,8 @@ test('F-10b fetchVapidPublicKey：200+b64url → 字串；500/壞 shape/網路�
 
 const IOS_UA_175 = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Mobile/15E148';
 const IOS_UA_163 = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_3 like Mac OS X) Mobile/15E148';
+const MAC_SAFARI_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+const MAC_CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 /** subscribeFlow / unsubscribeFlow deps 建構 helper（測試預設；over 覆寫） */
 function mkFlowDeps(over = {}) {
@@ -581,6 +583,43 @@ test('F-21b iOS standalone 但 <16.4 → 限制提示、不發權限請求（EC6
   assert.equal(res.state, 'ios-unsupported');
   assert.ok(res.hint.includes('16.4'), res.hint);
   assert.equal(req, 0);
+});
+
+// ── F-29 macOS Safari 桌機分支（E8 桌機對應：未加到 Dock → 提示且不發權限請求；修「通知服務連線失敗」誤導）──
+test('F-29 isMacSafari：macOS Safari → true；Chrome/Edge/Firefox macOS、iPhone → false', () => {
+  const macEdge = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0';
+  const macFirefox = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0';
+  assert.equal(Pwa.isMacSafari(MAC_SAFARI_UA), true);
+  assert.equal(Pwa.isMacSafari(MAC_CHROME_UA), false, 'Chrome on macOS 含 Safari/537.36 須排除');
+  assert.equal(Pwa.isMacSafari(macEdge), false, 'Edge on macOS 須排除');
+  assert.equal(Pwa.isMacSafari(macFirefox), false, 'Firefox UA 無 Safari/ 標記');
+  assert.equal(Pwa.isMacSafari(IOS_UA_175), false, 'iPhone UA 無 Macintosh');
+  assert.equal(Pwa.isMacSafari(''), false);
+});
+
+test('F-29b macSafariGate：非 standalone → 阻擋「加到 Dock」；standalone → 不阻擋；非 Safari → 不阻擋', () => {
+  const g = Pwa.macSafariGate(MAC_SAFARI_UA, false);
+  assert.equal(g.blocked, true);
+  assert.equal(g.state, 'macos-required');
+  assert.ok(g.hint.includes('Dock'), g.hint);
+  assert.equal(Pwa.macSafariGate(MAC_SAFARI_UA, true).blocked, false, '已加到 Dock（standalone）→ 可訂閱');
+  assert.equal(Pwa.macSafariGate(MAC_CHROME_UA, false).blocked, false, 'Chrome on macOS 不受此 gate 影響');
+});
+
+test('F-29c macOS Safari 非 standalone 訂閱 → 「加到 Dock」提示、requestPermission 呼叫數 = 0（E8 桌機）', async () => {
+  let req = 0;
+  const res = await Pwa.subscribeFlow(mkFlowDeps({
+    ua: MAC_SAFARI_UA, standalone: false,
+    requestPermission: async () => { req += 1; return 'granted'; },
+  }));
+  assert.equal(res.state, 'macos-required');
+  assert.ok(res.hint.includes('Dock'), res.hint);
+  assert.equal(req, 0, '不發權限請求（與 E8 同語意）');
+});
+
+test('F-29d macOS Safari standalone（已加到 Dock）→ 正常訂閱流程', async () => {
+  const res = await Pwa.subscribeFlow(mkFlowDeps({ ua: MAC_SAFARI_UA, standalone: true }));
+  assert.equal(res.state, 'subscribed');
 });
 
 // ── F-10c E3 於流程中：公鑰抓取失敗 → unavailable ──

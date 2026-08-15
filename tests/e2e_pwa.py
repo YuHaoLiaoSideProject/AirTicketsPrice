@@ -143,14 +143,17 @@ INIT_ONLINE = r"""
 
 # ═══════════════ helpers ═══════════════
 def new_ctx(browser, bip=False, standalone=False, ios=False, online_override=False, viewport=None,
-            push=False, preset='', ios_version=None):
+            push=False, preset='', ios_version=None, mac_safari=False):
     """獨立 context。bip → beforeinstallprompt stub；standalone → display-mode stub；
-    ios → iPhone UA（ios_version='16.3' → iOS 16.3 UA，EC6）；online_override → navigator.onLine 覆寫
+    ios → iPhone UA（ios_version='16.3' → iOS 16.3 UA，EC6）；mac_safari → macOS Safari UA（F-29/E8b）；
+    online_override → navigator.onLine 覆寫
     （cookie offline=1 於 reload 前再加）；push → Phase 2 push stub（Pwa.CONFIG.PUSH_WORKER_URL 指向本機
     mock；preset 為 stub 後附加 JS，如預置已訂閱/權限狀態）。"""
     kw = {'viewport': viewport or {'width': 1280, 'height': 900}}
     if ios:
         kw['user_agent'] = IOS_UA_163 if ios_version == '16.3' else IOS_UA
+    elif mac_safari:
+        kw['user_agent'] = MAC_SAFARI_UA
     ctx = browser.new_context(**kw)
     if bip:
         ctx.add_init_script(INIT_BIP)
@@ -205,6 +208,10 @@ class ApiCounter:
 IOS_UA_163 = ('Mozilla/5.0 (iPhone; CPU iPhone OS 16_3 like Mac OS X) '
               'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 '
               'Mobile/15E148 Safari/604.1')
+
+# macOS Safari UA（F-29 / E8b：桌機版「未加到 Dock → 提示」；Safari desktop Web Push 僅支援安裝後）
+MAC_SAFARI_UA = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                 'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15')
 
 # RFC 8291 測試公鑰（65B 未壓縮點，87 chars base64url）——mock /vapid-public-key 回傳值
 TEST_VAPID_KEY = 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A'
@@ -601,6 +608,36 @@ def run_phase2_tests(browser):
     check('E2E-12 執行權限詢問（與一般流程相同）',
           page.evaluate('window.__push.requestCalls') == 1)
     check('E2E-12 無 console/page error', len(errs) == 0, errs[:2])
+    ctx.close()
+
+    # ═══ macOS Safari 桌機分支（F-29 / E8b：修「通知服務連線失敗」誤導）═══
+    print('\n── macOS Safari：E8b / F-29（E2E-22b/12b）──')
+    ctx, page, errs = new_ctx(browser, push=True, mac_safari=True)
+    w = WorkerMock(page)
+    page.goto(URL + '/web/')
+    wait_chart(page)
+    wait_sub_ready(page)
+    page.locator('#subBtn').click()
+    wait_sub_status(page, 'Dock')
+    check('E2E-22b macOS Safari 未加到 Dock → 提示「加到 Dock」、不發權限請求（E8b）',
+          'Dock' in page.locator('#subStatus').inner_text() and
+          page.evaluate('window.__push.requestCalls') == 0)
+    check('E2E-22b 無 console/page error', len(errs) == 0, errs[:2])
+    ctx.close()
+
+    ctx, page, errs = new_ctx(browser, push=True, mac_safari=True, standalone=True)
+    w = WorkerMock(page)
+    page.goto(URL + '/web/')
+    wait_chart(page)
+    wait_sub_ready(page)
+    page.locator('#subBtn').click()
+    wait_sub_state(page, '關閉票價提醒')
+    check('E2E-12b macOS Safari 已加到 Dock（standalone）→ 正常訂閱（F-29d）',
+          page.locator('#subBtn').inner_text() == '關閉票價提醒' and
+          '已訂閱' in page.locator('#subStatus').inner_text())
+    check('E2E-12b 執行權限詢問（與一般流程相同）',
+          page.evaluate('window.__push.requestCalls') == 1)
+    check('E2E-12b 無 console/page error', len(errs) == 0, errs[:2])
     ctx.close()
 
     ctx, page, errs = new_ctx(browser, push=True, ios=True, standalone=True, ios_version='16.3')
