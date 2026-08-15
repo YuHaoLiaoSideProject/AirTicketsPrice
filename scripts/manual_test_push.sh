@@ -7,6 +7,9 @@
 #   ./scripts/manual_test_push.sh --notify    # 需要 token：從真實 data/ 取航班，觸發一次推播
 #   ./scripts/manual_test_push.sh --help      # 本說明
 #
+# --notify 自訂訊息：設 PUSH_TITLE / PUSH_BODY（任一非空即自訂模式），PUSH_URL 選填（預設 ./）
+#   PUSH_TITLE='重要通知' PUSH_BODY='測試' PUSH_API_TOKEN=<token> ./scripts/manual_test_push.sh --notify
+#
 # 需要環境變數：
 #   PUSH_API_TOKEN    # 與 GitHub secret / Worker secret 同值（寫入型 secret，無法讀回，
 #                     # 若忘了只能「輪換」：wrangler secret put + GitHub secret 各設新值）
@@ -41,11 +44,12 @@ check_worker() {
   if command -v wrangler >/dev/null 2>&1; then
     local subs
     subs="$(wrangler kv key list --namespace-id "$KV_NAMESPACE_ID" 2>/dev/null | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo '?')"
-    if [[ "$subs" == "0" ]]; then
-      warn "目前 0 筆訂閱 —— 推播會「成功但沒人收到」。請先開網頁點「開啟票價提醒」訂閱。"
+    if [[ "$subs" == "0" || "$subs" == "?" ]]; then
+      warn "wrangler 讀取可能有 KV 一致性延遲，數字僅供參考（以 --notify 的 sent 數為準）"
     else
-      ok "目前 $subs 筆訂閱"
+      ok "wrangler 回報 $subs 筆（可能不準）"
     fi
+    warn "若剛訂閱請等 ~60s 再發；確認訂閱數最準的方式＝發一次通知看 sent 數"
   else
     warn "未安裝 wrangler，跳過訂閱人數檢查"
   fi
@@ -65,8 +69,13 @@ cmd_notify() {
     return 1
   fi
 
-  say "③ 從真實資料取 1 筆航班當測試 payload"
-  payload="$(python3 - <<'PY'
+  # 自訂訊息模式：設 PUSH_TITLE / PUSH_BODY（任一非空）即用自訂，否則用真實資料 drops
+  if [[ -n "${PUSH_TITLE:-}" || -n "${PUSH_BODY:-}" ]]; then
+    payload="$(python3 -c "import json,sys; print(json.dumps({'title':'${PUSH_TITLE:-}','body':'${PUSH_BODY:-}','url':'${PUSH_URL:-./}'}, ensure_ascii=False))")"
+    say "③ 自訂訊息 payload: $payload"
+  else
+    say "③ 從真實資料取 1 筆航班當測試 payload"
+    payload="$(python3 - <<'PY'
 import json, glob
 files = sorted(glob.glob('data/2026*.json'))
 records = []
@@ -91,7 +100,8 @@ print(json.dumps({"drops": [{
 }]}, ensure_ascii=False))
 PY
 )"
-  ok "payload: $payload"
+    ok "payload: $payload"
+  fi
 
   say "④ 觸發 /notify"
   resp="$(curl -sS --max-time 15 -X POST "$WORKER_NOTIFY" \
