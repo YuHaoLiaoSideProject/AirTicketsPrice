@@ -668,8 +668,8 @@ def run_phase2_tests(browser):
     w.subscribe_status = 500
     page.locator('#subBtn').click()
     wait_sub_status(page, '訂閱失敗')
-    check('E2E-16b POST /subscribe 500 → 「訂閱失敗，請稍後重試」（E2）',
-          '訂閱失敗，請稍後重試' in page.locator('#subStatus').inner_text())
+    check('E2E-16b POST /subscribe 500 → 「訂閱失敗」+ 具體原因（E2）',
+          '訂閱失敗' in page.locator('#subStatus').inner_text())
     # 恢復後：本機訂閱已存在 → 再點走「關閉」（app 語意）→ 三點重建訂閱成功
     w.subscribe_status = 200
     page.locator('#subBtn').click()

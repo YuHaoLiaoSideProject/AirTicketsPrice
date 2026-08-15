@@ -280,12 +280,21 @@
         return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
       },
       postSubscribe: async (sub) => {
-        const res = await fetch(CONFIG.PUSH_WORKER_URL + '/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sub),
-        });
-        return { ok: res.ok, status: res.status };
+        let res;
+        try {
+          res = await fetch(CONFIG.PUSH_WORKER_URL + '/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sub),
+          });
+        } catch (e) {
+          return { ok: false, status: 0, error: 'network' };   // 網路/CORS 失敗（iOS standalone 偶發 Load failed）
+        }
+        let err = '';
+        if (!res.ok) {
+          try { const j = await res.json(); err = j.error || ''; } catch { /* 非 JSON body */ }
+        }
+        return { ok: res.ok, status: res.status, error: err };
       },
     };
   }
@@ -353,9 +362,13 @@
       try {
         res = await d.postSubscribe(body);
       } catch (e) {
-        return { state: 'error', hint: '訂閱失敗，請稍後重試' };
+        return { state: 'error', hint: '訂閱失敗（網路錯誤），請稍後重試' };
       }
-      if (!res || !res.ok) return { state: 'error', hint: '訂閱失敗，請稍後重試' };  // E2（含 Worker 403/400）
+      if (!res || !res.ok) {
+        // E2（含 Worker 403/400）：顯示 Worker 回傳的具體原因（診斷：iOS 訂閱失敗可從此定位）
+        const why = res && res.error ? `（${res.error}）` : '';
+        return { state: 'error', hint: `訂閱失敗${why}，請稍後重試` };
+      }
       return { state: 'subscribed', hint: '已訂閱' };
     } finally {
       _subscribing = false;   // F-23：流程失敗/中止 → 旗標清除，無殘留狀態
