@@ -3,6 +3,7 @@
   "short_name": "票價趨勢",
   "description": "星宇航空來回票價趨勢追蹤（經濟艙 · 去程週六 → 回程下週日）",
   "lang": "zh-Hant",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

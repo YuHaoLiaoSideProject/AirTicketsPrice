@@ -291,6 +291,7 @@ test('F-16b manifest 必要欄位齊全且值正確（§2.2 D4 規格）', () =>
   assert.equal(manifest.short_name, '票價趨勢');
   assert.ok(typeof manifest.description === 'string' && manifest.description.length > 0);
   assert.equal(manifest.lang, 'zh-Hant');
+  assert.equal(manifest.id, './');       // iOS 26+ PWA 安裝識別（缺 id 可能致訂閱異常）
   assert.equal(manifest.start_url, './');     // GitHub Pages 子路徑部署（S2）
   assert.equal(manifest.scope, './');
   assert.equal(manifest.display, 'standalone');
