@@ -521,8 +521,20 @@ def run_phase2_tests(browser):
     check('E2E-07 點擊（user gesture）才觸發權限詢問',
           page.evaluate('window.__push.requestCalls') == 1)
     opts = page.evaluate('window.__push.lastOpts') or {}
-    check('INT-05/E2E-08 subscribe 以 userVisibleOnly + 測試公鑰',
-          opts.get('userVisibleOnly') is True and opts.get('applicationServerKey') == TEST_VAPID_KEY,
+    # applicationServerKey 自 T9+ 為 Uint8Array（Safari 相容；b64urlToBytes 解碼），比對解碼後值
+    app_key = opts.get('applicationServerKey')
+    ak_ok = False
+    if app_key == TEST_VAPID_KEY:
+        ak_ok = True
+    elif isinstance(app_key, list):
+        try:
+            b = bytes(app_key)
+            import base64
+            ak_ok = base64.urlsafe_b64encode(b).rstrip(b'=').decode() == TEST_VAPID_KEY
+        except Exception:
+            ak_ok = False
+    check('INT-05/E2E-08 subscribe 以 userVisibleOnly + 測試公鑰（Uint8Array 解碼比對）',
+          opts.get('userVisibleOnly') is True and ak_ok,
           repr(opts))
     check('E2E-08 訂閱成功狀態「已訂閱」',
           '已訂閱' in page.locator('#subStatus').inner_text())

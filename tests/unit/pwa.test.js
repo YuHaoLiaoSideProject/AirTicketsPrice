@@ -712,3 +712,24 @@ test('F-25 前端不含 VAPID 私鑰／secret（BR11 憑證分層）', () => {
   }
 });
 
+
+// ── E2 錯誤分類（subscribe 拋錯依 name 給可操作提示）──
+test('E2 分類：subscribe NotAllowedError → iOS 未安裝提示；AbortError → 服務連線提示；其他 → 通用（F-09 相容）', async () => {
+  const n = await Pwa.subscribeFlow(mkFlowDeps({ subscribe: async () => { throw new DOMException('x', 'NotAllowedError'); } }));
+  assert.equal(n.state, 'error');
+  assert.ok(n.hint.includes('加到主畫面'), n.hint);
+  const a = await Pwa.subscribeFlow(mkFlowDeps({ subscribe: async () => { throw new DOMException('x', 'AbortError'); } }));
+  assert.equal(a.state, 'error');
+  assert.ok(a.hint.includes('通知服務連線失敗'), a.hint);
+  const g = await Pwa.subscribeFlow(mkFlowDeps({ subscribe: async () => { throw new Error('boom'); } }));
+  assert.equal(g.state, 'error');
+  assert.equal(g.hint, '訂閱失敗，請稍後重試');
+});
+
+// ── b64urlToBytes（applicationServerKey 轉 Uint8Array，Safari 相容）──
+test('b64urlToBytes：87-char raw point → 65 bytes（0x04 開頭）', () => {
+  const key = 'BLR37tYlifEmx-pybUsAHHnAbg4vtkuZGK-951g-vvGQdVnaYQEFSPRYnvBpQsBO7KqlEqt_-DxKkrihXxKCifE';
+  const bytes = Pwa.b64urlToBytes(key);
+  assert.equal(bytes.length, 65);
+  assert.equal(bytes[0], 4);
+});

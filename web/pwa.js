@@ -274,7 +274,11 @@
       requestPermission: () => (notification && notification.requestPermission)
         ? notification.requestPermission()
         : Promise.resolve('denied'),
-      subscribe: (reg, key) => reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }),
+      subscribe: (reg, key) => {
+        // Safari 對 applicationServerKey 的 base64url string 解析較嚴格 → 統一轉 Uint8Array（Chrome/Safari/Firefox 皆相容）
+        const appKey = typeof key === 'string' ? b64urlToBytes(key) : key;
+        return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+      },
       postSubscribe: async (sub) => {
         const res = await fetch(CONFIG.PUSH_WORKER_URL + '/subscribe', {
           method: 'POST',
@@ -327,6 +331,13 @@
       try {
         sub = await d.subscribe(reg, key);
       } catch (e) {
+        // E2 分類：NotAllowedError（iOS 未安裝/權限）與 AbortError（服務連線）給可操作提示；其餘通用
+        if (e && e.name === 'NotAllowedError') {
+          return { state: 'error', hint: '通知權限未允許；iOS 請先「加到主畫面」安裝後再試' };
+        }
+        if (e && e.name === 'AbortError') {
+          return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試' };
+        }
         return { state: 'error', hint: '訂閱失敗，請稍後重試' };
       }
       if (!sub || !sub.endpoint) return { state: 'error', hint: '訂閱失敗，請稍後重試' };
@@ -452,6 +463,15 @@
   }
 
   // UMD 匯出（tests/unit/pwa.test.js require 的公開面）
+  /** base64url → Uint8Array（applicationServerKey 用；Safari 相容，Spike S1 格式） */
+  function b64urlToBytes(s) {
+    const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
   return {
     installStateMachine,
     shouldShowInstall,
@@ -466,6 +486,7 @@
     resolveNotificationUrl,
     findNotificationTarget,
     formatNotification,
+    b64urlToBytes,
     CONFIG,
   };
 });
