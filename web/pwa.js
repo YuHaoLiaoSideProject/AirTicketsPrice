@@ -351,6 +351,10 @@
         return { state: 'error', hint: '訂閱失敗，請稍後重試' };
       }
       if (!sub || !sub.endpoint) return { state: 'error', hint: '訂閱失敗，請稍後重試' };
+      if (!sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
+        // iOS 16.4.x 已知 bug：PushSubscription.keys 偶發缺失 → 無法加密通知；提示更新 iOS / 重加主畫面
+        return { state: 'error', hint: '訂閱金鑰不完整（iOS 已知問題）；請更新 iOS 至最新版，或刪除後重新加入主畫面再試' };
+      }
       // ⑥ 寫入 Worker（免 token；body = {endpoint, keys, action:'add'}，§3.1 T9 合約）
       const body = {
         endpoint: sub.endpoint,
