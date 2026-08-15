@@ -733,3 +733,27 @@ test('b64urlToBytes：87-char raw point → 65 bytes（0x04 開頭）', () => {
   assert.equal(bytes.length, 65);
   assert.equal(bytes[0], 4);
 });
+
+// ── iOS 26 特例：subscription.keys getter 空 → toJSON() fallback（F-07 相容）──
+test('iOS 26 keys fallback：sub.keys 空但 toJSON() 有 keys → 訂閱成功且 body 帶 toJSON keys', async () => {
+  const fakeSub = {
+    endpoint: 'https://web.push.apple.com/ios-26-token',
+    keys: undefined,                       // iOS 26：keys getter 為空
+    toJSON: () => ({ endpoint: 'https://web.push.apple.com/ios-26-token', keys: { p256dh: 'B' + 'A'.repeat(86), auth: 'B'.repeat(22) } }),
+  };
+  let posted = null;
+  const res = await Pwa.subscribeFlow(mkFlowDeps({
+    subscribe: async () => fakeSub,
+    postSubscribe: async (body) => { posted = body; return { ok: true }; },
+  }));
+  assert.equal(res.state, 'subscribed');
+  assert.ok(posted.keys && posted.keys.p256dh, 'body 應帶 toJSON 的 keys');
+});
+
+test('keys 完全缺失（toJSON 也無）→ 金鑰不完整提示', async () => {
+  const res = await Pwa.subscribeFlow(mkFlowDeps({
+    subscribe: async () => ({ endpoint: 'https://p.example/s/1', keys: undefined, toJSON: () => ({ endpoint: 'https://p.example/s/1' }) }),
+  }));
+  assert.equal(res.state, 'error');
+  assert.ok(res.hint.includes('訂閱金鑰不完整'), res.hint);
+});
