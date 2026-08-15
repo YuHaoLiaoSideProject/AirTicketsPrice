@@ -175,12 +175,12 @@ Feature: PWA 可安裝與推播通知
     And 頁面瀏覽與圖表功能完全不受影響
 
   @error-handling @p1
-  Scenario: Brave 訂閱失敗時提示關閉 Shields（E2-Brave）
+  Scenario: Brave 訂閱失敗時提示開啟 Google 推播服務（E2-Brave）
     Given 我用 Brave 瀏覽器開啟頁面（navigator.brave 存在）並同意權限
-    And 訂閱時收到 AbortError
+    And 訂閱時收到 AbortError（brave-browser #41930：隱私預設關閉 Google 推播服務）
     When 系統嘗試建立訂閱
     Then 狀態顯示「通知服務連線失敗」
-    And 提示點名「Brave 的 Shields 可能阻擋 Google 推播服務」並指引點獅子圖示關閉本站 Shields
+    And 提示指引到 brave://settings/privacy 開啟「Use Google services for push messaging」
 
   @error-handling @p1
   Scenario: macOS Safari 未加到 Dock 就訂閱時提示安裝（E8b）

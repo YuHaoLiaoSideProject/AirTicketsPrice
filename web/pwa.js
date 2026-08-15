@@ -380,15 +380,16 @@
           return { state: 'error', hint: '通知權限未允許；iOS 請先「加到主畫面」安裝後再試' };
         }
         if (e && e.name === 'AbortError') {
-          // 診斷：瀏覽器連不上自家推播服務（Chrome/Edge/Brave=FCM、Firefox=Mozilla push、Safari=APNs）；
-          // 常見於 VPN 出口／公司防火牆／擋廣告擴充（Brave Shields 等）擋 Google 網域。
-          // macOS Safari 未加到 Dock 亦會以 AbortError 失敗（正常情境已由 macSafariGate F-29 先行阻擋）。
+          // 診斷：瀏覽器連不上自家推播服務（Chrome/Edge/Brave=FCM、Firefox=Mozilla push、Safari=APNs）。
+          // Brave 桌面版已知問題（brave-browser #41930/#2362）：隱私預設關閉「Use Google services for
+          // push messaging」→ GCM 註冊必敗（Registration failed - push service error）；與 Shields/網路無關。
           console.warn('[pwa] push subscribe AbortError：瀏覽器無法連上推播服務（Chrome/Edge/Brave=FCM）。'
-            + '診斷：在瀏覽器開啟 https://fcmregistrations.googleapis.com/ 與 https://fcm.googleapis.com/ 確認未被擋'
-            + '（VPN／公司網路／擋廣告擴充為常見原因）');
+            + 'Brave 桌面版請至 brave://settings/privacy 開啟「Use Google services for push messaging」'
+            + '（brave-browser #41930：隱私預設關閉導致註冊必敗）；其他瀏覽器檢查 VPN／公司網路／擋廣告擴充；'
+            + '診斷：開 https://fcmregistrations.googleapis.com/ 確認未被擋');
           if (d.isBrave) {
-            // Brave 特例：Shields（擋廣告）攔 Google 網域 → FCM 註冊失敗；給可操作的專屬排除提示
-            return { state: 'error', hint: '通知服務連線失敗：Brave 的 Shields 可能阻擋 Google 推播服務，請點網址列獅子圖示關閉本站 Shields 後重試' };
+            // Brave 特例（brave-browser #41930）：隱私設定關掉 Google 推播服務 → FCM 註冊必敗；給可操作指引
+            return { state: 'error', hint: '通知服務連線失敗：Brave 預設關閉推播用的 Google 服務，請到 brave://settings/privacy 開啟「Use Google services for push messaging」後重試' };
           }
           return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試（VPN／公司網路／擋廣告擴充可能阻擋推播服務）' };
         }
