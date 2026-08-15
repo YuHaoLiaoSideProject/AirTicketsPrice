@@ -26,6 +26,8 @@ worker/
 
 ## 部署步驟（一次性）
 
+> ✅ **2026-08-15 已執行完畢**：Worker `airtickets-price-push` 已部署於 `https://airtickets-price-push.h770320.workers.dev`（帳號 h770320@gmail.com）；KV namespace（SUBS）、VAPID 金鑰、兩個 secrets 均已設定。以下步驟供複製到其他環境或重建時使用。
+
 ```bash
 # ① 安裝 wrangler 並登入（一次性）
 npm i -g wrangler

@@ -399,12 +399,17 @@ test('F-20 訂閱狀態以 getSubscription 為準（E5 過期→未訂閱 / F-26
   assert.equal(Pwa.subscriptionUI('default', null, { vapidReady: true }).state, 'unsubscribed');
 });
 
-test('F-10 E3：vapidReady=false → unavailable「提醒功能暫時不可用」（任何 permission）', () => {
-  for (const [perm, sub] of [['default', null], ['granted', { endpoint: 'https://p/x' }], ['denied', null]]) {
-    const ui = Pwa.subscriptionUI(perm, sub, { vapidReady: false });
-    assert.equal(ui.state, 'unavailable', perm);
-    assert.equal(ui.hint, '提醒功能暫時不可用', perm);
-  }
+test('F-10 E3：vapidReady=false → unavailable（僅未訂閱）；denied/已訂閱仍顯示本機真相（E1 優先）', () => {
+  // 未訂閱 + 服務不可得 → unavailable（E2E-17 情境）
+  const u = Pwa.subscriptionUI('default', null, { vapidReady: false });
+  assert.equal(u.state, 'unavailable');
+  assert.equal(u.hint, '提醒功能暫時不可用');
+  // 本機真相優先：denied / 已訂閱不因 vapid 不可得而改變（離線三態 ①③）
+  const d = Pwa.subscriptionUI('denied', null, { vapidReady: false });
+  assert.equal(d.state, 'denied');
+  assert.ok(d.hint.includes('封鎖'), d.hint);
+  const s = Pwa.subscriptionUI('granted', { endpoint: 'https://p/x' }, { vapidReady: false });
+  assert.equal(s.state, 'subscribed');
 });
 
 // ── F-10b fetchVapidPublicKey（E3：fetch → b64url 解析；失敗 → null）──
@@ -581,6 +586,7 @@ test('F-21b iOS standalone 但 <16.4 → 限制提示、不發權限請求（EC6
 test('F-10c 訂閱流程公鑰不可得 → unavailable「提醒功能暫時不可用」（E3）', async () => {
   const res = await Pwa.subscribeFlow(mkFlowDeps({
     vapidKey: null,
+    fetchImpl: async () => ({ ok: false }),   // mock 公鑰抓取失敗（不連外網；部署後 CONFIG 為正式網域）
     subscribe: async () => { throw new Error('不應訂閱'); },
   }));
   assert.equal(res.state, 'unavailable');

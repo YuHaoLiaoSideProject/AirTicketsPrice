@@ -56,7 +56,7 @@ RETRY_BACKOFF = 3  # 秒（指數退避：3s, 6s）
 # ---------------------------------------------------------------- Phase 2 通知（T10）
 # Worker POST /notify 位址（T11 設定 GitHub secret 後由環境變數 PUSH_NOTIFY_URL 覆寫；
 # 部署後應改為實際 workers.dev 網域，或直接以環境變數注入）
-PUSH_NOTIFY_URL = "https://airtickets-price-push.example.workers.dev/notify"
+PUSH_NOTIFY_URL = "https://airtickets-price-push.h770320.workers.dev/notify"
 
 # 單則摘要最多幾條下降（Tech Decision D4）
 MAX_NOTIFY_DROPS = 3

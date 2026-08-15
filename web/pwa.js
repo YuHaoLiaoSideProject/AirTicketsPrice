@@ -26,7 +26,7 @@
   // 設定常數（§9.4：Worker 部署後更新 PUSH_WORKER_URL；ROUTE_NAMES 與 config.py / aggregate.js 對齊）
   // ════════════════════════════════════════════════════════════
   const CONFIG = {
-    PUSH_WORKER_URL: 'https://airtickets-price-push.<account>.workers.dev',  // §9.1 部署後改為實際 workers.dev 網域
+    PUSH_WORKER_URL: 'https://airtickets-price-push.h770320.workers.dev',  // §9.1 部署後改為實際 workers.dev 網域
     MAX_NOTIFY_DROPS: 3,                       // D4：摘要最多 3 條（與爬蟲 / Worker 一致）
     ROUTE_NAMES: { 'TPE-NRT': '東京', 'TPE-KIX': '大阪', 'TPE-FUK': '福岡', 'TPE-CTS': '札幌' },
     IOS_SUPPORT_VERSION: [16, 4],              // iOS 16.4+ installed PWA 才收得到推播（D5/D7/S3）
@@ -184,9 +184,6 @@
    */
   function subscriptionUI(permission, subscription, opts) {
     const o = opts || {};
-    if (o.vapidReady === false) {
-      return { state: 'unavailable', buttonLabel: '開啟票價提醒', hint: '提醒功能暫時不可用', retryable: true };  // E3
-    }
     if (o.state === 'loading') {
       return { state: 'loading', buttonLabel: '處理中…', hint: '', retryable: false };
     }
@@ -194,10 +191,14 @@
       return { state: 'error', buttonLabel: '開啟票價提醒', hint: '訂閱失敗，請稍後重試', retryable: true };  // E2
     }
     if (permission === 'denied') {
-      return { state: 'denied', buttonLabel: '開啟票價提醒', hint: '通知已封鎖，請到瀏覽器網站設定中允許通知', retryable: true };  // E1
+      // E1 優先：denied 是瀏覽器本機真相（離線亦可判讀、需使用者到瀏覽器設定允許）→ 即使 vapid 不可得仍顯示拒絕引導
+      return { state: 'denied', buttonLabel: '開啟票價提醒', hint: '通知已封鎖，請到瀏覽器網站設定中允許通知', retryable: true };
     }
     if (permission === 'granted' && !!subscription) {
-      return { state: 'subscribed', buttonLabel: '關閉票價提醒', hint: '已訂閱', retryable: false };
+      return { state: 'subscribed', buttonLabel: '關閉票價提醒', hint: '已訂閱', retryable: false };  // 本機真相優先：已訂閱不因服務不可得而改變
+    }
+    if (o.vapidReady === false) {
+      return { state: 'unavailable', buttonLabel: '開啟票價提醒', hint: '提醒功能暫時不可用', retryable: true };  // E3（僅未訂閱情境）
     }
     return { state: 'unsubscribed', buttonLabel: '開啟票價提醒', hint: '', retryable: true };
   }
@@ -238,6 +239,7 @@
   async function fetchVapidPublicKey(url, fetchImpl) {
     const u = url || CONFIG.PUSH_WORKER_URL + '/vapid-public-key';
     if (!u || u.includes('<account>')) return null;   // 未部署：占位網域不可解析（E3 降級）
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;  // 離線：不發請求（P2-E；避免離線 console error）
     let res;
     try {
       res = await (fetchImpl || fetch)(u);
@@ -317,7 +319,7 @@
       if (permission === 'default') return { state: 'unsubscribed', hint: '' };  // E4：詢問被忽略 → 無錯誤
       // ④ VAPID 公鑰（E3：抓取失敗 → 停用＋暫時不可用）
       let key = d.vapidKey;
-      if (key === undefined || key === null) key = await fetchVapidPublicKey();
+      if (key === undefined || key === null) key = await fetchVapidPublicKey(undefined, d.fetchImpl);  // fetchImpl 可注入（測試 mock，避免連外網）
       if (!key) return { state: 'unavailable', hint: '提醒功能暫時不可用' };
       // ⑤ 建立訂閱（E2：subscribe 拋錯 → 可重試）
       const reg = await d.getRegistration();

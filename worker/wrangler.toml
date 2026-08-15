@@ -11,7 +11,7 @@ compatibility_date = "2026-08-15"
 #   產生：node worker/spike/gen-vapid-keys.mjs → 輸出 publicKey
 #   用途：GET /vapid-public-key 回傳、前端 PushManager.subscribe(applicationServerKey) 用同一值
 #   ⚠️ 此為 placeholder——部署前必須以實際產出值替換（勿 commit 測試金鑰）
-VAPID_PUBLIC_KEY = "<由 gen-vapid-keys.mjs 產生的 publicKey raw point b64url>"
+VAPID_PUBLIC_KEY = "BLR37tYlifEmx-pybUsAHHnAbg4vtkuZGK-951g-vvGQdVnaYQEFSPRYnvBpQsBO7KqlEqt_-DxKkrihXxKCifE"
 
 # VAPID JWT 的 sub 宣告（mailto: 或 https:；RFC 8292 SHOULD；可任意 email）
 VAPID_SUBJECT = "mailto:admin@example.com"
@@ -20,7 +20,7 @@ VAPID_SUBJECT = "mailto:admin@example.com"
 # 訂閱名單（key = sub:{endpoint}，value = PushSubscription JSON；HDL-10 裝置單位）
 #   建立：wrangler kv namespace create SUBSCRIPTIONS → 以輸出的 id 替換下方 placeholder
 binding = "SUBS"
-id = "<由 wrangler kv namespace create 產生>"
+id = "c826435583dc465394ea302b19e38293"
 
 # 機密（不寫入本檔，以 wrangler secret put 設定，詳見 README）：
 #   VAPID_PRIVATE_KEY  = gen-vapid-keys.mjs 輸出的 privateKeyJwk JSON 字串（EC P-256 JWK 含 d）

@@ -272,9 +272,13 @@ python tests/e2e_pwa.py            # PWA E2E（安裝 + 訂閱/通知/離線並�
 
 ---
 
-## 🔔 票價下降通知（選用，PWA Phase 2）
+## 🔔 票價下降通知（PWA Phase 2）
+
+> **部署狀態（2026-08-15）**：✅ 已部署上線——Worker `https://airtickets-price-push.h770320.workers.dev`、KV namespace、`PUSH_API_TOKEN`（GitHub + Worker secret 同值）均已設定；真實 `--notify` 端到端驗證通過（200 + 週 marker）。
 
 每週五爬蟲完成並 commit 後，若任一航班票價較**上次抓取**下降（`drop_last`），系統會以 Web Push 主動推播**單則摘要通知**（最多 3 條、取下降幅度最大者）；點通知直接跳到該航線。
+
+> ⚠️ **已知限制（Cloudflare KV eventual consistency）**：訂閱寫入/刪除後最多 ~60s 才全區可見——對「每週一次 notify」無實際影響（notify 距離最近訂閱變動通常遠超過 60s）；僅在「訂閱後 1 分鐘內立即觸發 notify」的極端情境可能短暫讀不到新訂閱（該週漏發、下週恢復）。
 
 > 未部署通知功能**不影響任何既有功能**：爬蟲照常、資料照常 commit，workflow 只會跳過通知 step。
 

@@ -89,7 +89,9 @@
    *   subscriptionUI 三態 + flow 暫時性結果覆寫（hint 優先取自 flow，避免閃失）
    */
   function renderSubUI(permission, subscription, flow) {
-    const ui = Pwa.subscriptionUI(permission, subscription, { vapidReady: !!vapidKey });
+    // 離線 → 不顯示 unavailable（還原本機三態，E1 本機真相優先）；線上才以 vapidReady 判服務可用性（E3）
+    const vapidReady = navigator.onLine ? !!vapidKey : true;
+    const ui = Pwa.subscriptionUI(permission, subscription, { vapidReady });
     const override = flow && FLOW_OVERRIDE_STATES.includes(flow.state);
     const state = override ? flow.state : ui.state;
     const hint = override ? (flow.hint || ui.hint) : ui.hint;
