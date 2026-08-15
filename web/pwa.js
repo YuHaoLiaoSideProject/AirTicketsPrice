@@ -332,6 +332,7 @@
         sub = await d.subscribe(reg, key);
       } catch (e) {
         // E2 分類：NotAllowedError（iOS 未安裝/權限）與 AbortError（服務連線）給可操作提示；其餘通用
+        console.warn('[pwa] push subscribe 失敗:', e && e.name, e && e.message);  // 診斷：iOS 首次訂閱失敗可由此定位（Safari Web Inspector）
         if (e && e.name === 'NotAllowedError') {
           return { state: 'error', hint: '通知權限未允許；iOS 請先「加到主畫面」安裝後再試' };
         }
