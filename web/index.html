@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>星宇機票價格趨勢</title>
 <link rel="icon" href="data:,">
+<!-- PWA（T3 / §2.5）：manifest / apple-touch-icon / theme-color / iOS meta（F-17 / E2E-37） -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1a73e8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -29,6 +36,23 @@
       <span id="syncStatus" class="sync-status" role="status" aria-live="polite" hidden></span>
     </div>
   </header>
+
+  <!-- PWA 動作列（T4 / §2.5）：header 之下、route-tabs 之上；375px 自動換行（§7） -->
+  <div class="pwa-actions" id="pwaActions">
+    <!-- ① 安裝按鈕：初始 hidden；beforeinstallprompt 後顯示；standalone / iOS 隱藏（P1-B/C） -->
+    <button id="installBtn" class="btn install-btn" type="button" hidden>
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>
+      安裝 App
+    </button>
+    <!-- ② iOS「加到主畫面」提示：依 UA 顯示；分享 → 加到主畫面（P1-B / BR5） -->
+    <div id="iosHint" class="ios-hint" role="note" hidden>
+      點分享 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 21h14"/></svg>
+      後選「加到主畫面」，即可把票價趨勢加到主畫面
+    </div>
+    <!-- ③ 訂閱 toggle + 狀態：初始 hidden；secure context 且 Worker 公鑰可取時顯示（T9 / §2.5） -->
+    <button id="subBtn" class="btn sub-toggle" type="button" hidden>開啟票價提醒</button>
+    <span id="subStatus" class="sub-status" role="status" aria-live="polite" hidden></span>
+  </div>
 
   <!-- 航線 tab -->
   <nav id="routeTabs" class="route-tabs" role="tablist" aria-label="選擇航線"></nav>
@@ -91,6 +115,7 @@
 </div>
 <script src="aggregate.js"></script>
 <script src="cache.js"></script>
+<script src="pwa.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

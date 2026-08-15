@@ -1,0 +1,16 @@
+{
+  "name": "星宇機票價格趨勢",
+  "short_name": "票價趨勢",
+  "description": "星宇航空來回票價趨勢追蹤（經濟艙 · 去程週六 → 回程下週日）",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#1a73e8",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "icons/icon-192.png",  "sizes": "192x192",  "type": "image/png" },
+    { "src": "icons/icon-512.png",  "sizes": "512x512",  "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

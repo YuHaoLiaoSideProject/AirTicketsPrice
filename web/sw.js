@@ -1,15 +1,19 @@
 /* 離線功能 — app shell Service Worker（方案 C：只兜頁面殼，不攔 api/）
    對照：docs/tech-decisions/離線功能-2026-08-15.md D1；docs/development/離線功能.md §2.4 / §9
-   任務：T6（離線功能開發規格） */
+   任務：T6（離線功能開發規格）+ T9（PWA Phase 2：push / notificationclick / notificationclose） */
 'use strict';
 
-const CACHE = 'airtickets-shell-v1';          // 版本化；部署 bump → activate 清舊 cache（§5.1）
+// T9：載入 pwa.js（deep-link 拼接 / 分頁決策純函式單一來源，§2.7）；pwa.js 在 SW scope 內且已 precache
+importScripts('pwa.js');
+
+const CACHE = 'airtickets-shell-v3';          // 版本化；部署 bump → activate 清舊 cache（§5.1）；Phase 1 v1→v2、Phase 2 v2→v3（push handler）
 const SHELL = [                               // 僅 app shell 檔（D1：不攔 api/）
   'index.html',
   'styles.css',
   'app.js',
   'aggregate.js',
   'cache.js',
+  'pwa.js',                                   // T3：pwa.js 進 shell（離線 reload 不可缺，§2.1）
   'sw.js',
 ];
 
@@ -49,4 +53,44 @@ self.addEventListener('fetch', e => {
       return fallback || net;                   // cache-first；快取 miss → 網路，網路失敗 → 快取
     })
   );
+});
+
+/* ═══ Phase 2（T9 / §2.7）：push / notificationclick / notificationclose ═══ */
+
+/* push：Worker 已格式化 payload { title, body, data: { url } }（§3.2）；
+ * 無 payload／解析失敗 → fallback 通知（§5.4）。信任 Worker 格式化結果，僅做欄位防禦。 */
+self.addEventListener('push', e => {
+  let payload = null;
+  try { payload = e.data && e.data.json(); } catch (err) { payload = null; }
+  const p = payload || { title: '✈️ 票價下降了！', body: '有票價更新', data: { url: './' } };
+  e.waitUntil(self.registration.showNotification(p.title || '票價趨勢', {
+    body: p.body || '',
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    data: p.data || {},
+  }));
+});
+
+/* notificationclick：close → 以 registration.scope 為基準拼接相對 data.url（F-14 / EC3 子路徑部署）
+ * → 既有同 origin 分頁 focus + navigate（E10，不重開分頁）；無分頁 → openWindow（P2-B / E2E-10）。 */
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const dataUrl = (e.notification.data && e.notification.data.url) || './';
+  const url = new URL(dataUrl, self.registration.scope);
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    const target = (typeof Pwa !== 'undefined' && Pwa.findNotificationTarget)
+      ? Pwa.findNotificationTarget(list, url.href)
+      : list.find(c => new URL(c.url).origin === url.origin) || null;
+    if (target) {
+      target.focus();
+      if (typeof target.navigate === 'function') target.navigate(url.href).catch(() => {});
+      return;
+    }
+    return clients.openWindow(url.href);
+  }));
+});
+
+/* notificationclose：滑掉通知 → 無任何動作（E13 / F-15；不開頁、不 focus、不導覽） */
+self.addEventListener('notificationclose', e => {
+  // 有意為空：關閉通知不觸發任何後續行為（EC8 多則通知各自獨立）
 });

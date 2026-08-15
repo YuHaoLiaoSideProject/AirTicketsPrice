@@ -26,6 +26,8 @@
   const offBar = $('offBar');         // 離線橫幅（T4 / §2.3.1）
   const refreshBtn = $('refreshBtn'); // 手動更新按鈕（T5 / §2.3.1）
   const syncStatus = $('syncStatus'); // 更新時間旁的同步狀態文字（已是最新 / 更新失敗…，§2.3.1）
+  const installBtn = $('installBtn'); // PWA 安裝按鈕（T4 / §2.5 ①；初始 hidden）
+  const iosHint = $('iosHint');       // iOS「加到主畫面」提示（T4 / §2.5 ②；初始 hidden）
 
   // ⚠️ SVG 元素的 `.hidden = true` 只改 IDL property、不會反映成 hidden attribute（Chromium 怪癖），
   // 而 CSS `[hidden] { display:none }` 依賴 attribute → 圖表會"看似隱藏其實仍顯示"。
@@ -34,6 +36,107 @@
     if (hidden) chart.setAttribute('hidden', '');
     else chart.removeAttribute('hidden');
   };
+
+  // ═══════════════ PWA 安裝入口（T4 / §2.6；pwa.js 掛全域 Pwa，§2.4） ═══════════════
+  const Pwa = window.Pwa;
+  const installState = Pwa.installStateMachine();
+
+  /** standalone 判定（P1-C）：display-mode:standalone 或 iOS navigator.standalone */
+  const isStandalone = () =>
+    window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+  /**
+   * 安裝 UI 渲染（F-01 / F-03 / P1-B）：
+   *  - 安裝按鈕：僅 available 且非 standalone 且非 iOS → 顯示（iOS 走「加到主畫面」提示）
+   *  - iOS 提示：isIOS 且非 standalone → 顯示（P1-B / BR5）；standalone → 兩者皆隱藏（P1-C）
+   */
+  function renderInstallUI() {
+    const ios = Pwa.isIOS(navigator.userAgent);
+    const showBtn = Pwa.shouldShowInstall(installState.state(), isStandalone());
+    installBtn.hidden = !(showBtn && !ios);
+    iosHint.hidden = !(ios && !isStandalone());
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();                        // 暫存 deferred prompt，點擊才呼叫（F-02 / BR40）
+    installState.setPrompt(e);
+    renderInstallUI();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    installState.reset();                      // 已安裝 → 清暫存；standalone 下按鈕永不顯示（P1-C）
+    renderInstallUI();
+  });
+
+  installBtn.addEventListener('click', () => {
+    // 只有 user gesture 才呼叫原生安裝流程（deferred prompt 暫存語意）
+    installState.prompt().then(choice => {
+      if (choice && choice.outcome === 'dismissed') renderInstallUI();  // 取消 → 按鈕保留可再觸發（P1-A）
+    });
+  });
+
+  renderInstallUI();   // 初始狀態（無事件時按鈕/提示皆 hidden；iOS 非 standalone → 顯示提示）
+
+  // ═══════════════ PWA 訂閱 toggle 與狀態 UI（T9 / §2.6，Phase 2） ═══════════════
+  const subBtn = $('subBtn'), subStatus = $('subStatus');
+  let vapidKey = null;                        // VAPID 公鑰快取（E3 失敗 → null → 按鈕停用）
+
+  /** 流程暫時性結果（覆寫自然三態：E1/E2/E8/EC6/E3） */
+  const FLOW_OVERRIDE_STATES = ['denied', 'error', 'ios-required', 'ios-unsupported', 'unavailable'];
+
+  /**
+   * 訂閱 UI 渲染（F-05a~d / F-10 / F-20 / F-26）：
+   *   subscriptionUI 三態 + flow 暫時性結果覆寫（hint 優先取自 flow，避免閃失）
+   */
+  function renderSubUI(permission, subscription, flow) {
+    const ui = Pwa.subscriptionUI(permission, subscription, { vapidReady: !!vapidKey });
+    const override = flow && FLOW_OVERRIDE_STATES.includes(flow.state);
+    const state = override ? flow.state : ui.state;
+    const hint = override ? (flow.hint || ui.hint) : ui.hint;
+    subBtn.hidden = false;
+    subBtn.textContent = ui.buttonLabel;                     // 開啟票價提醒 / 關閉票價提醒
+    subBtn.disabled = !vapidKey || state === 'loading';      // E3 停用
+    subStatus.hidden = !hint;
+    subStatus.textContent = hint || '';
+    subBtn.classList.toggle('subscribed', state === 'subscribed');   // §7 .sub-toggle.subscribed
+    subStatus.classList.toggle('warn', state === 'denied' || state === 'error');
+    subStatus.classList.toggle('unavailable', state === 'unavailable');  // E3（§7 .sub-status.unavailable）
+  }
+
+  /**
+   * 訂閱初始化（§2.6 / D5）：不彈權限詢問、以 getSubscription() 為唯一真相（F-20/F-26）；
+   * 非 secure context（file://）→ 整個訂閱區維持 hidden（E14 / F-24）。fire-and-forget，不延後首繪。
+   */
+  async function initPwaPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) ||
+        !/^https?:$/.test(location.protocol)) return;        // E14：file:// 降級
+    try {
+      // ① 抓 VAPID 公鑰（E3：失敗 → 停用＋「提醒功能暫時不可用」，其餘功能正常）
+      vapidKey = await Pwa.fetchVapidPublicKey();
+      // ② 還原三態（F-20/F-26；不重複訂閱、不彈權限詢問）
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      renderSubUI(Notification.permission, sub);
+    } catch (e) {
+      /* 降級：訂閱區維持 hidden（不影響其餘功能） */
+    }
+  }
+
+  subBtn.addEventListener('click', async () => {
+    // user gesture：訂閱或退訂（D5 唯一 requestPermission 入口；F-06）
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      let flow = null;
+      if (existing) flow = await Pwa.unsubscribeFlow({ getRegistration: async () => reg });   // P2-C 退訂
+      else flow = await Pwa.subscribeFlow({ vapidKey, getRegistration: async () => reg });     // P2-A 訂閱
+      const sub = await reg.pushManager.getSubscription();
+      renderSubUI(Notification.permission, sub, flow);
+    } catch (e) {
+      // 防呆：流程拋錯 → 以自然狀態渲染（不顯示錯誤卡）
+      renderSubUI(Notification.permission, null);
+    }
+  });
 
   // ═══════════════ 應用狀態（單一來源） ═══════════════
   const state = {
@@ -839,7 +942,11 @@
   }
 
   async function init() {
-    // 0. 註冊 SW（T6 / §2.3.2 步驟 0）：僅 http(s) 且支援時註冊（localhost 為 secure context）；
+    // 0. deep-link（T9 / §2.6，E2E 發現的真 bug 修正）：notificationclick 開啟 /web/?route=XXX 時聚焦該航線
+    //    （BDD P2-B「點擊通知開啟對應航線」/ E10 / EC3 子路徑；參數無效 → 忽略維持預設航線）
+    const routeParam = new URLSearchParams(location.search).get('route');
+    const routeRequested = routeParam && CONFIG.ROUTES.some(r => r.id === routeParam) ? routeParam : null;
+    // 0.1 註冊 SW（T6 / §2.3.2 步驟 0）：僅 http(s) 且支援時註冊（localhost 為 secure context）；
     //    失敗靜默降級（file:// / 不支援 → 純記憶體快取，頁面仍可用，§9.1 / E8）
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
       navigator.serviceWorker.register('sw.js').catch(() => {}); // 靜默，不影響功能
@@ -853,6 +960,7 @@
     renderRouteTabs();
     renderRangeSeg();
     initControls();
+    initPwaPush();   // fire-and-forget：訂閱 UI 初始化不延後首繪（§2.6；不彈權限詢問，D5）
 
     // 1. 來源檢查（E2）
     if (!originAllowed(location.origin)) {
@@ -866,6 +974,20 @@
       cached = await OfflineCache.loadCache(cacheStore);
     } catch (e) {
       cached = null; // E8：降級為既有記憶體 routeCache 行為（頁面仍可用）
+    }
+    // 2.1 deep-link 目標有效性（需快取與連線狀態）：離線且目標未快取 → 顯示 tab 提示並停留原航線（BDD E9）
+    if (routeRequested) {
+      const hasTarget = cached && OfflineCache.hasCache(cached.units, cached.meta, routeRequested);
+      if (!navigator.onLine && !hasTarget) {
+        state.route = CONFIG.ROUTES[0].id;                    // E9：停留原航線（預設東京）
+      } else {
+        state.route = routeRequested;                          // P2-B / E10：聚焦該航線
+      }
+      renderRouteTabs();
+      if (!navigator.onLine && !hasTarget) {
+        const tab = routeTabs.querySelector('button[data-route="' + routeRequested + '"]');
+        if (tab) showRouteHint(tab);                          // 「此航線尚未下載，需連網」（render 後才 append，避免被重繪清除）
+      }
     }
     if (!cached) {
       syncState = 'first';

@@ -147,6 +147,52 @@ body {
 .sync-status { font-size: 0.72rem; font-weight: 600; color: var(--success); }
 .sync-status.warn { color: var(--warning); }
 
+/* ═══ PWA（§7）：動作列 / 安裝按鈕 / iOS 提示 / 訂閱（Phase 2 預留）═══ */
+.pwa-actions {
+  display: flex; align-items: center; gap: 0.6rem;
+  flex-wrap: wrap; padding: 0.2rem 0 0.6rem;
+}
+.install-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 20px; padding: 0.42rem 1rem;
+  font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+.install-btn:hover { background: var(--accent-hover); }
+.install-btn:focus-visible { outline: 3px solid var(--accent-light); outline-offset: 2px; }
+.install-btn .ico { width: 15px; height: 15px; }
+
+.ios-hint {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-size: 0.78rem; color: var(--accent);
+  background: var(--accent-light); border: 1px solid rgba(26,115,232,0.3);
+  border-radius: 8px; padding: 0.45rem 0.8rem;
+}
+.ios-hint .ico { width: 15px; height: 15px; color: var(--accent); }
+
+/* ═══ 訂閱 toggle（.sub-toggle；三態，Phase 2 / T9 預留）═══ */
+.sub-toggle { border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+.sub-toggle.subscribed {
+  background: var(--success-light); color: var(--success);
+  border: 1px solid var(--success-border);
+}
+.sub-toggle:disabled { opacity: 0.55; cursor: not-allowed; }   /* E3 停用 */
+
+/* ═══ 訂閱狀態提示（.sub-status；Phase 2 / T9 預留）═══ */
+.sub-status {
+  font-size: 0.74rem; font-weight: 600; color: var(--success);
+  background: var(--success-light); border: 1px solid var(--success-border);
+  border-radius: 8px; padding: 0.35rem 0.7rem;
+}
+.sub-status.warn {                      /* denied / error：拒絕引導、訂閱失敗（E1/E2） */
+  color: var(--danger); background: var(--danger-light); border-color: var(--danger-border);
+}
+.sub-status.unavailable {               /* E3：提醒功能暫時不可用 */
+  color: var(--warning); background: var(--warning-light);
+  border-color: rgba(227,116,0,0.35);
+}
+
 /* ── RWD ── */
 @media (max-width: 1023px) {
   .chart-toolbar { gap: 0.7rem; }

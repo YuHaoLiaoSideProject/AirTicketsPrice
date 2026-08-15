@@ -45,3 +45,14 @@ jobs:
             git commit -m "chore: 更新機票價格 $(date -u +%Y-%m-%dT%H:%MZ)"
             git push
           fi
+
+      - name: Detect drops & notify（PWA Phase 2；需先設定 PUSH_API_TOKEN secret）
+        # 位於 Commit 之後（規格 §9.2）：① 基準讀「上一週 data 檔」不受本次 build 污染；
+        # ② E6「資料照常提交」語意成立——通知失敗不影響已 commit 的資料。
+        # 失敗語意：不需 continue-on-error——step 失敗只讓 workflow 標紅（提示需人工查看，
+        # 如 token 輪換／Worker 異常），爬蟲結果仍已照常提交。
+        if: ${{ secrets.PUSH_API_TOKEN != '' }}   # 未設定 secret → 整步跳過、不報錯（維持「無 secret 也能跑」）
+        env:
+          PUSH_API_TOKEN: ${{ secrets.PUSH_API_TOKEN }}
+          PUSH_NOTIFY_URL: https://airtickets-price-push.<account>.workers.dev/notify  # 部署後改為實際網域
+        run: python fetch_prices.py --notify

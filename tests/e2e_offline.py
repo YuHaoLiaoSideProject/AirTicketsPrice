@@ -258,7 +258,7 @@ def wait_sw_ready(page):
     page.wait_for_function("""async () => {
       const reg = await navigator.serviceWorker.ready;
       const keys = await caches.keys();
-      return reg.active && keys.includes('airtickets-shell-v1');
+      return reg.active && keys.includes('airtickets-shell-v3');
     }""", timeout=10000)
 
 
