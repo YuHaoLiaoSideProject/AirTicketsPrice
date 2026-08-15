@@ -300,6 +300,7 @@
       standalone: !!(nav && (nav.standalone === true ||
         (win && win.matchMedia && win.matchMedia('(display-mode: standalone)').matches))),
       userGesture: true,
+      isBrave: !!(nav && nav.brave),            // Brave 偵測（navigator.brave 存在；Shields 擋廣告會攔 Google 網域）
       permission: notification ? notification.permission : 'default',
       getRegistration: () => nav.serviceWorker.ready,
       requestPermission: () => (notification && notification.requestPermission)
@@ -384,8 +385,12 @@
           // macOS Safari 未加到 Dock 亦會以 AbortError 失敗（正常情境已由 macSafariGate F-29 先行阻擋）。
           console.warn('[pwa] push subscribe AbortError：瀏覽器無法連上推播服務（Chrome/Edge/Brave=FCM）。'
             + '診斷：在瀏覽器開啟 https://fcmregistrations.googleapis.com/ 與 https://fcm.googleapis.com/ 確認未被擋'
-            + '（VPN／公司網路／擋廣告擴充如 Brave Shields 為常見原因）');
-          return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試（VPN／公司網路／擋廣告擴充如 Brave Shields 常阻擋推播服務）' };
+            + '（VPN／公司網路／擋廣告擴充為常見原因）');
+          if (d.isBrave) {
+            // Brave 特例：Shields（擋廣告）攔 Google 網域 → FCM 註冊失敗；給可操作的專屬排除提示
+            return { state: 'error', hint: '通知服務連線失敗：Brave 的 Shields 可能阻擋 Google 推播服務，請點網址列獅子圖示關閉本站 Shields 後重試' };
+          }
+          return { state: 'error', hint: '通知服務連線失敗，請確認網路後重試（VPN／公司網路／擋廣告擴充可能阻擋推播服務）' };
         }
         return { state: 'error', hint: '訂閱失敗，請稍後重試' };
       }

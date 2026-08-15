@@ -761,7 +761,15 @@ test('E2 分類：subscribe NotAllowedError → iOS 未安裝提示；AbortError
   const a = await Pwa.subscribeFlow(mkFlowDeps({ subscribe: async () => { throw new DOMException('x', 'AbortError'); } }));
   assert.equal(a.state, 'error');
   assert.ok(a.hint.includes('通知服務連線失敗'), a.hint);
-  assert.ok(a.hint.includes('Shields'), 'AbortError 提示應點名擋廣告擴充（Brave Shields）情境');
+  assert.ok(a.hint.includes('擋廣告'), 'AbortError 提示應點名擋廣告擴充情境');
+  // Brave 特例：navigator.brave 存在 → 專屬「關 Shields（獅子圖示）」提示
+  const b = await Pwa.subscribeFlow(mkFlowDeps({
+    isBrave: true,
+    subscribe: async () => { throw new DOMException('x', 'AbortError'); },
+  }));
+  assert.equal(b.state, 'error');
+  assert.ok(b.hint.includes('Shields'), 'Brave 提示應點名 Shields');
+  assert.ok(b.hint.includes('獅子'), 'Brave 提示應含獅子圖示操作說明');
   const g = await Pwa.subscribeFlow(mkFlowDeps({ subscribe: async () => { throw new Error('boom'); } }));
   assert.equal(g.state, 'error');
   assert.equal(g.hint, '訂閱失敗，請稍後重試');

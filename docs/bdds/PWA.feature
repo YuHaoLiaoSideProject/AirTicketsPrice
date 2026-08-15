@@ -167,12 +167,20 @@ Feature: PWA 可安裝與推播通知
   @error-handling @p1
   Scenario: 訂閱時瀏覽器連不上推播服務顯示可操作提示（E2-AbortError）
     Given 我點「開啟票價提醒」並同意權限
-    And 瀏覽器無法連上自家推播服務（FCM／Mozilla push，常見於 VPN 出口或公司防火牆）
+    And 瀏覽器無法連上自家推播服務（FCM／Mozilla push，常見於 VPN 出口、公司防火牆或擋廣告擴充）
     When 系統嘗試建立訂閱並收到 AbortError
     Then 狀態顯示「通知服務連線失敗，請確認網路後重試」
     And 提示包含「VPN／公司網路／擋廣告」可操作說明
     And 按鈕可再次點擊重試
     And 頁面瀏覽與圖表功能完全不受影響
+
+  @error-handling @p1
+  Scenario: Brave 訂閱失敗時提示關閉 Shields（E2-Brave）
+    Given 我用 Brave 瀏覽器開啟頁面（navigator.brave 存在）並同意權限
+    And 訂閱時收到 AbortError
+    When 系統嘗試建立訂閱
+    Then 狀態顯示「通知服務連線失敗」
+    And 提示點名「Brave 的 Shields 可能阻擋 Google 推播服務」並指引點獅子圖示關閉本站 Shields
 
   @error-handling @p1
   Scenario: macOS Safari 未加到 Dock 就訂閱時提示安裝（E8b）
