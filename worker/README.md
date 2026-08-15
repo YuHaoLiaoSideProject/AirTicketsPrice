@@ -7,6 +7,7 @@
 | GET | `/vapid-public-key` | 無 | — | `200 { publicKey }`（raw point b64url） |
 | POST | `/subscribe` | `Bearer PUSH_API_TOKEN` | `{endpoint, keys:{p256dh,auth}, action?:'add'\|'remove'}` | `200 {ok:true}`；`400 invalid subscription` / `400 subscription limit reached`；`401 unauthorized` |
 | POST | `/notify` | `Bearer PUSH_API_TOKEN` | `{drops:[{route,outbound_date,return_date,flight_no,old_price,new_price}...]}`（最多 3 條） | `200 {ok:true,sent,failed:0}`；`400 drops required`；`401 unauthorized`；`500 {ok:false,sent,failed}`（部分/全部失敗） |
+| POST | `/notify`（自訂訊息） | `Bearer PUSH_API_TOKEN` | `{title?, body?, url?}`（title/body 任一非空即自訂模式，不需 drops；url 相對 SW scope，預設 `'./'`） | 同上；自訂模式用於手動測試／公告，爬蟲仍送 drops 格式不受影響 |
 
 - 全端點帶 CORS（`Access-Control-Allow-Origin: *` + OPTIONS 204 preflight）——頁面（github.io）與 Worker（workers.dev）跨域必需。
 - Web Push 廣播：VAPID（ES256 JWT，RFC 8292）+ RFC 8291 加密（aes128gcm），實作為純 Web Crypto（`src/vapid.mjs`，Spike S1 移植，零依賴零 build）。

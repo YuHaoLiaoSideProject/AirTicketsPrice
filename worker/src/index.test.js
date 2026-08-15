@@ -401,6 +401,30 @@ test('HDL-04b POST /notify drops 缺失／空／非陣列 → 400 drops required
   });
 });
 
+test('HDL-04c POST /notify 自訂訊息模式（title/body/url，不需 drops）→ 推播自訂 payload', async () => {
+  const mod = await loadWorker();
+  const kv = mkKV();
+  const sub = await mkFakeSub('https://fcm.googleapis.com/fcm/send/hdl04c-custom');
+  await mod.default.fetch(mkReq('POST', '/subscribe', { body: sub }), mkEnv(kv));
+  let pushCall = null;
+  await withFetch(async (call) => { pushCall = call; return new Response(null, { status: 201 }); }, async (f) => {
+    const res = await mod.default.fetch(mkReq('POST', '/notify', {
+      token: TOKEN,
+      body: { title: '重要通知', body: '測試', url: './' },
+    }), mkEnv(kv));
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true, sent: 1, failed: 0 });
+    assert.equal(f.calls.length, 1);
+  });
+  const vapid = await loadVapid();
+  const plain = await vapid.decryptPayload({
+    body: pushCall.body, subscription: { keys: sub.keys }, uaPrivateKeyJwk: sub.privJwk,
+  });
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(plain)), {
+    title: '重要通知', body: '測試', data: { url: './' },
+  }, 'push payload 為自訂 title/body/url');
+});
+
 test('HDL-06 POST /notify 無訂閱者 → 200 空廣播（0 次 Web Push，無錯誤）', async () => {
   const mod = await loadWorker();
   const kv = mkKV();
@@ -510,4 +534,26 @@ test('HDL-08 formatNotification 與前端合約一致（§3.2 fixture TPE-NRT / 
   // 無效日期 → '—'（不拋例外）
   const badDate = formatNotification([{ route: 'TPE-NRT', outbound_date: null, return_date: 'garbage', old_price: 100, new_price: 90 }]);
   assert.ok(badDate.body.includes('—–—'), badDate.body);
+});
+
+test('HDL-08b formatNotification 自訂訊息模式（title/body/url 覆寫，不需 drops）', async () => {
+  const mod = await loadWorker();
+  const { formatNotification } = mod;
+  const DEFAULT_TITLE = '✈️ 票價下降了！';
+  // title+body+url 全自訂
+  assert.deepEqual(formatNotification(null, { title: '重要通知', body: '測試', url: './' }),
+    { title: '重要通知', body: '測試', data: { url: './' } });
+  // 只給 body → title 維持預設；url 預設 './'
+  assert.deepEqual(formatNotification(null, { body: '測試' }),
+    { title: DEFAULT_TITLE, body: '測試', data: { url: './' } });
+  // 只給 title → body 回退為 title
+  assert.deepEqual(formatNotification(null, { title: '重要通知' }),
+    { title: '重要通知', body: '重要通知', data: { url: './' } });
+  // 自訂優先於 drops 明細（同時送 drops 時仍以自訂為準）
+  assert.deepEqual(formatNotification([{ route: 'TPE-NRT', outbound_date: '2026-08-22', return_date: '2026-08-30', old_price: 26008, new_price: 24120 }],
+    { title: '手動測試', body: '自訂內容', url: '?route=TPE-NRT' }),
+    { title: '手動測試', body: '自訂內容', data: { url: '?route=TPE-NRT' } });
+  // 無自訂 → 既有行為不變
+  assert.deepEqual(formatNotification(null, {}), { title: DEFAULT_TITLE, body: '有票價更新', data: { url: '?route=' } });
+  assert.equal(formatNotification(undefined, { title: '' }).title, DEFAULT_TITLE, '空字串 title 不算自訂');
 });

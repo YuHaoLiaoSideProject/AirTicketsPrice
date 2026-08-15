@@ -13,8 +13,11 @@
 //                             ③ MAX_SUBS 上限（達上限 → 400）；{endpoint, keys, action?}；
 //                             有效 add → 200 寫入 KV sub:{endpoint}；action=remove → 200 刪除；無效 → 400
 //   POST /notify            → Bearer PUSH_API_TOKEN（爬蟲持有）；{drops:[...]}（最多 3 條，Worker 防禦性 slice）；
-//                             成功 → 200 {ok,sent,failed:0}；drops 缺失/空 → 400 drops required；token 錯 → 401；
+//                             成功 → 200 {ok,sent,failed:0}；drops 缺失/空且無自訂訊息 → 400 drops required；token 錯 → 401；
 //                             404/410 訂閱自動清理；5xx/網路失敗 → 500 {ok:false,failed}（不誤報成功）
+//   POST /notify（自訂訊息） → 同端點；body 另可帶 {title?, body?, url?}（任一非空字串 → 自訂模式）：
+//                             推送標題=title（缺省「✈️ 票價下降了！」）、內容=body、點擊跳轉=url（相對 SW scope，預設 './'）
+//                             ——手動測試/公告用；爬蟲仍送 drops 格式不受影響。
 // ---------------------------------------------------------------------------------------------
 import { buildRequest, signVapidJwt, base64urlToBytes } from './vapid.mjs';
 
@@ -83,8 +86,12 @@ export async function notify(request, env) {
   if (!isAuthorized(request, env.PUSH_API_TOKEN)) return json({ error: 'unauthorized' }, 401);
   const body = await request.json().catch(() => null);
   const drops = body && body.drops;
-  if (!Array.isArray(drops) || drops.length === 0) return json({ error: 'drops required' }, 400);
-  const payload = formatNotification(drops); // §3.2 承載；最多 3 行（MAX_DROPS 防禦性 slice）
+  // 自訂訊息模式：title/body 任一為非空字串 → 不需 drops（手動測試/公告；爬蟲仍送 drops 格式）
+  const hasCustom = !!(body && (typeof body.title === 'string' || typeof body.body === 'string'));
+  if ((!Array.isArray(drops) || drops.length === 0) && !hasCustom) {
+    return json({ error: 'drops required' }, 400);
+  }
+  const payload = formatNotification(drops, body); // §3.2 承載；自訂模式優先，否則最多 3 行（MAX_DROPS 防禦性 slice）
 
   let names;
   try { names = await listSubs(env.SUBS); } catch { return json({ ok: false, error: 'kv unavailable' }, 500); }
@@ -163,15 +170,20 @@ export function isValidSubscription(sub) {
 }
 
 /** 通知承載格式化（HDL-08 / F-19a/b 同簽名合約）：
- *  title = '✈️ 票價下降了！'
- *  body  = drops 逐筆「{route} {名稱} {M}/{D}–{M}/{D} 降至 NT${new}（原 NT${old}）」以 '\n' 連接
- *          （範例：'TPE-NRT 東京 8/22–8/30 降至 NT$24,120（原 NT$26,008）'；價格千分位、月日去前導零）
- *  data.url = '?route=' + drops[0].route（**相對 SW scope**，sw.js 以 registration.scope 拼接，F-14）
- *  drops 為空／非陣列 → title 不變、body = '有票價更新'、data.url = '?route='（§5.4 fallback）
+ *  title = '✈️ 票價下降了！'；body 為 drops 明細（見下）；data.url = '?route=' + 首筆 route（SW 以 scope 拼接）。
+ *  第二參數 custom（選用）＝自訂訊息模式：
+ *    - custom.title 非空字串 → 取代 title；custom.body 非空字串 → 取代 body 並以 custom.url（相對 SW scope，預設 './'）為 data.url
+ *    - 至少 title/body 任一非空才視為自訂（notify handler 已擋掉兩者皆無且 drops 空的請求）
+ *  drops 為空／非陣列且無自訂 → title 不變、body = '有票價更新'、data.url = './'（§5.4 fallback）
  *  實作與 web/pwa.js formatNotification 逐字對齊（同一份合約兩份實作，§3.2 語意對照）。 */
-export function formatNotification(drops) {
+export function formatNotification(drops, custom) {
   const list = Array.isArray(drops) ? drops.slice(0, MAX_DROPS) : [];
-  const title = '✈️ 票價下降了！';
+  const customTitle = custom && typeof custom.title === 'string' && custom.title;
+  const customBody = custom && typeof custom.body === 'string' && custom.body;
+  const title = customTitle || '✈️ 票價下降了！';
+  if (customTitle || customBody) {
+    return { title, body: customBody || title, data: { url: (custom && custom.url) || './' } };
+  }
   if (list.length === 0) return { title, body: '有票價更新', data: { url: '?route=' } };
   const body = list.map((d) => {
     const name = ROUTE_NAMES[d.route] || d.route || '';
