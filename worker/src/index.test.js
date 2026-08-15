@@ -207,14 +207,14 @@ test('HDL-03 POST /subscribe 無效資料 → 400 invalid subscription，KV 零�
     const kv = mkKV();
     const res = await mod.default.fetch(mkReq('POST', '/subscribe', { body: bad }), mkEnv(kv));
     assert.equal(res.status, 400, label);
-    assert.equal((await res.json()).error, 'invalid subscription', label);
+    assert.ok((await res.json()).error.startsWith('invalid subscription: '), label);
     assert.equal(kv._map.size, 0, label + ' → 不得寫入 KV');
   }
   // 非 JSON body → 400
   const kv = mkKV();
   const res = await mod.default.fetch(mkReq('POST', '/subscribe', { rawBody: '{not json' }), mkEnv(kv));
   assert.equal(res.status, 400);
-  assert.equal((await res.json()).error, 'invalid subscription');
+  assert.ok((await res.json()).error.startsWith('invalid subscription: '));
   assert.equal(kv._map.size, 0);
 });
 

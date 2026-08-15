@@ -63,7 +63,8 @@ export async function subscribe(request, env) {
     if (typeof body.endpoint === 'string') await env.SUBS.delete(SUB_PREFIX + body.endpoint);
     return json({ ok: true });
   }
-  if (!isValidSubscription(body)) return json({ error: 'invalid subscription' }, 400);
+  const subReason = isValidSubscription(body);
+  if (subReason) return json({ error: `invalid subscription: ${subReason}` }, 400);
   try {
     if ((await countSubs(env.SUBS)) >= MAX_SUBS) return json({ error: 'subscription limit reached' }, 400);
     await env.SUBS.put(SUB_PREFIX + body.endpoint, JSON.stringify(body));
@@ -143,21 +144,22 @@ export function timingSafeEqual(a, b) {
 }
 
 /** 訂閱資料驗證（HDL-02/03）：endpoint 為 https URL；keys.p256dh 為 65B 未壓縮點（0x04 開頭）；
- *  keys.auth ≥16B（Spike 陷阱：不符則 notify 時 encryptPayload 必失敗，故訂閱時即拒絕）。 */
+ *  keys.auth ≥16B（Spike 陷阱：不符則 notify 時 encryptPayload 必失敗，故訂閱時即拒絕）。
+ *  回傳 null = 合法；字串 = 具體失敗原因（前端顯示，診斷 iOS/各瀏覽器格式差異）。 */
 export function isValidSubscription(sub) {
-  if (!sub || typeof sub !== 'object' || typeof sub.endpoint !== 'string') return false;
-  try {
-    if (new URL(sub.endpoint).protocol !== 'https:') return false;
-  } catch { return false; }
+  if (!sub || typeof sub !== 'object' || typeof sub.endpoint !== 'string') return 'endpoint missing';
+  try { if (new URL(sub.endpoint).protocol !== 'https:') return 'endpoint not https'; } catch { return 'endpoint invalid url'; }
   const keys = sub.keys;
-  if (!keys || typeof keys !== 'object' || typeof keys.p256dh !== 'string' || typeof keys.auth !== 'string') return false;
-  if (keys.p256dh === '' || keys.auth === '') return false;
-  try {
-    const p256dh = base64urlToBytes(keys.p256dh);
-    if (p256dh.length !== 65 || p256dh[0] !== 4) return false;
-    if (base64urlToBytes(keys.auth).length < 16) return false;
-  } catch { return false; }
-  return true;
+  if (!keys || typeof keys !== 'object') return 'keys missing';
+  if (typeof keys.p256dh !== 'string' || keys.p256dh === '') return 'p256dh missing';
+  if (typeof keys.auth !== 'string' || keys.auth === '') return 'auth missing';
+  let p256dh;
+  try { p256dh = base64urlToBytes(keys.p256dh); } catch { return 'p256dh bad base64'; }
+  if (p256dh.length !== 65 || p256dh[0] !== 4) return `p256dh format(len=${p256dh.length},head=0x${p256dh[0]?.toString(16)})`;
+  let auth;
+  try { auth = base64urlToBytes(keys.auth); } catch { return 'auth bad base64'; }
+  if (auth.length < 16) return `auth too short(${auth.length})`;
+  return null;
 }
 
 /** 通知承載格式化（HDL-08 / F-19a/b 同簽名合約）：
