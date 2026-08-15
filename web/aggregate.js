@@ -260,6 +260,18 @@
   }
 
   /**
+   * 「上次更新 HH:MM」格式化（離線功能 §2.7 / F-15）：顯示訪客本地時區；null / 無效 → '--:--'。
+   * @param {string|null} iso - syncedAt / generated_at ISO 字串
+   * @returns {string}
+   */
+  function formatLastUpdated(iso) {
+    if (!iso) return '--:--';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '--:--';
+    return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  /**
    * Summary 三卡純計算（一律以「每週最低價」為基準，不隨航班模式變動）：
    *  - minWeek：可見範圍最低價週（null 排除）
    *  - avg：全域平均（呼叫端傳入 globalAverage 結果）
@@ -299,6 +311,7 @@
     isStale,
     originAllowed,
     formatGeneratedAt,
+    formatLastUpdated,
     summaryData,
   };
 });

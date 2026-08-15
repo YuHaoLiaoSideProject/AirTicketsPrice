@@ -48,7 +48,7 @@ body {
 
 /* ── 航線 tab ── */
 .route-tabs { display: flex; gap: 0.35rem; border-bottom: 1px solid var(--border); }
-.rtab { display: inline-flex; align-items: center; gap: 0.45rem; height: var(--h); padding: 0 1.05rem; border: 1px solid transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: none; color: var(--muted); font-size: 0.875rem; cursor: pointer; font-weight: 500; transition: all var(--transition); }
+.rtab { display: inline-flex; align-items: center; gap: 0.45rem; height: var(--h); padding: 0 1.05rem; border: 1px solid transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: none; color: var(--muted); font-size: 0.875rem; cursor: pointer; font-weight: 500; transition: all var(--transition); position: relative; }  /* position:relative 為 E2 提示錨點 */
 .rtab:hover { color: var(--text); background: var(--surface-2); }
 .rtab:focus-visible { outline: 3px solid var(--accent-light); outline-offset: -2px; }
 .rtab.active { background: var(--surface); border-color: var(--border); border-bottom-color: var(--bg); color: var(--accent); font-weight: 700; box-shadow: inset 0 2px 0 var(--accent); }
@@ -126,6 +126,26 @@ body {
 .scard.cheap .s-v { color: var(--success); }
 .scard.peak .s-v { color: var(--danger); }
 .scard.avg .s-v { color: var(--warning); }
+
+/* ═══ 離線狀態層（§7：離線橫幅 / 手動更新 disabled / tab 提示 / 同步狀態）═══ */
+.offbar {
+  display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;
+  font-size: 0.8rem; color: var(--danger);
+  background: var(--danger-light); border: 1px solid var(--danger-border);
+  border-radius: 8px; padding: 0.5rem 0.85rem; margin: 0.55rem 0 0.15rem;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--surface); border-color: var(--border); }
+.rtab .hint {
+  position: absolute; top: -0.45rem; right: 0.4rem;
+  font-size: 0.62rem; color: var(--danger);
+  background: var(--danger-light); border: 1px solid var(--danger-border);
+  border-radius: 4px; padding: 0.08rem 0.35rem; white-space: nowrap;
+  opacity: 1; transition: opacity 0.3s ease; pointer-events: none; z-index: 2;
+}
+.rtab .hint.fade { opacity: 0; }            /* ~3s 後加 fade 再移除（E2） */
+.sync-status { font-size: 0.72rem; font-weight: 600; color: var(--success); }
+.sync-status.warn { color: var(--warning); }
 
 /* ── RWD ── */
 @media (max-width: 1023px) {

@@ -228,6 +228,18 @@ test('F-15 formatGeneratedAt 取日期部分（UTC）', () => {
   assert.equal(Agg.formatGeneratedAt('2026-08-14T13:19:34.000Z'), '2026-08-14');
 });
 
+// ── F-15b 「上次更新 HH:MM」格式化（離線功能 §2.7；訪客本地時區）──
+test('F-15b formatLastUpdated 回傳 HH:MM 形狀（以格式形狀驗證，避免時區 flaky）', () => {
+  assert.match(Agg.formatLastUpdated('2026-08-14T22:46:53.000Z'), /^\d{2}:\d{2}$/);
+});
+
+test('F-15c formatLastUpdated null / 無效輸入 → "--:--"', () => {
+  assert.equal(Agg.formatLastUpdated(null), '--:--');
+  assert.equal(Agg.formatLastUpdated(undefined), '--:--');
+  assert.equal(Agg.formatLastUpdated(''), '--:--');
+  assert.equal(Agg.formatLastUpdated('not-a-date'), '--:--');
+});
+
 // ── F-16 旺季區間判定 ──
 test('F-16 detectPeak 區間含邊界；區間外 null', () => {
   assert.equal(Agg.detectPeak('2027-01-30'), '農曆過年'); // 起點

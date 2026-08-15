@@ -10,6 +10,9 @@
 <body>
 <div class="page">
 
+  <!-- 離線橫幅（T4 / §2.5 ①）：頁首最上層；離線時顯示「離線模式 · 顯示上次資料（HH:MM）」 -->
+  <div id="offBar" class="offbar" role="status" aria-live="polite" hidden>離線模式 · 顯示上次資料（--:--）</div>
+
   <!-- 頁首：標題 + 更新時間 + 過舊警示 -->
   <header class="ph">
     <div>
@@ -22,6 +25,8 @@
         <span id="staleText">資料可能過時</span>
       </span>
       <span class="badge-upd"><span class="dotg"></span><span id="updText">載入中…</span></span>
+      <button id="refreshBtn" class="btn" type="button">手動更新</button>
+      <span id="syncStatus" class="sync-status" role="status" aria-live="polite" hidden></span>
     </div>
   </header>
 
@@ -85,6 +90,7 @@
 
 </div>
 <script src="aggregate.js"></script>
+<script src="cache.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

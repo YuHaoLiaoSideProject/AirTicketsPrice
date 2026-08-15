@@ -184,6 +184,36 @@ python tests/e2e_smoke.py   # 全部綠才 commit
 
 ---
 
+## 📴 離線功能
+
+純前端「快取優先 + 增量更新」：再次開啟頁面秒開；有網路時只補載變更資料，沒網路時直接瀏覽上次載入的快取（含離線開頁）。
+
+- **快取優先 + 增量更新**：開啟時先以 IndexedDB 快取秒繪圖表，再於背景比對 `generated_at`——相同 →「已是最新」（0 個 trip 請求）；伺服器較新 → 以 ETag 條件式請求（`If-None-Match`）只補載變更的 trip 檔（304 零 body）；伺服器較舊 →「資料可能過時」警示（不覆寫本地新資料）
+- **離線瀏覽**：Service Worker 快取 app shell（6 檔：index.html / styles.css / app.js / aggregate.js / cache.js / sw.js）→ 離線也能開啟頁面；資料存 IndexedDB → 離線顯示上次載入的趨勢圖（航班切換 / 日期篩選 / hover / Summary 三卡皆可用），頁首顯示離線橫幅「離線模式 · 顯示上次資料（HH:MM）」
+- **手動更新**：連網時可點「手動更新」強制重新驗證（重新抓 index + 跑完整增量同步）；離線時按鈕停用顯示「離線中，無法更新」
+- **限制**：首次訪問需連網（載入一次後才有快取）；離線僅限「上次載入過」的航線，未載入航線顯示「此航線尚未下載，需連網」並停留原航線；快取以瀏覽器為單位——無痕視窗／另一瀏覽器等同首次訪問
+
+| 檔案 | 說明 |
+|------|------|
+| `web/cache.js` | 快取層：IndexedDB 薄封裝（meta / units 兩 store）+ 比對／增量／降級純函式（UMD 匯出，可單元測試） |
+| `web/sw.js` | Service Worker：app shell precache（SWR，不攔 api/） |
+| `web/app.js` | cache-first 啟動／背景比對／增量同步／離線狀態層／手動更新 |
+| `web/aggregate.js` | 新增 `formatLastUpdated`（上次更新 HH:MM） |
+| `tests/unit/cache.test.js` | 快取層單元測試（node:test） |
+| `tests/e2e_offline.py` | 離線 E2E（Playwright `setOffline` + 條件式 304／200／404 mock） |
+
+### 離線功能驗證
+
+```bash
+node --test tests/unit/cache.test.js tests/unit/aggregate.test.js   # 純函式單元測試（含離線快取層）
+python tests/e2e_smoke.py    # 既有 E2E 冒煙（回歸門檻，不得退步）
+python tests/e2e_offline.py  # 離線情境 E2E（首次／二次訪問、離線瀏覽、手動更新、E1–E8、邊界、商業規則）
+```
+
+> 離線功能與「票價趨勢圖（前端）」共用同一份 `api/` 資料：條件式請求只省下載量、不改變資料內容與圖表行為。
+
+---
+
 ## 📈 之後可擴充
 
 - [x] 趨勢圖視覺化（把 data/*.json 畫成折線圖）

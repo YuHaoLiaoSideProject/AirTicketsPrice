@@ -10,7 +10,7 @@
   const {
     CONFIG,
     aggregateWeekly, globalAverage, diffPct, filterRange,
-    minMark, detectPeak, isStale, originAllowed, formatGeneratedAt, summaryData,
+    minMark, detectPeak, isStale, originAllowed, formatGeneratedAt, formatLastUpdated, summaryData,
     hasAnyPrice,
   } = window.PriceAgg;
 
@@ -23,6 +23,9 @@
   const emptyBox = $('emptyBox'), staleBar = $('staleBar'), staleText = $('staleText'), updText = $('updText');
   const sumMin = $('sumMin'), sumMinS = $('sumMinS'), sumAvg = $('sumAvg'), sumPeak = $('sumPeak'), sumPeakS = $('sumPeakS');
   const summary = $('summary'); // 三卡容器（無資料時整區隱藏）
+  const offBar = $('offBar');         // 離線橫幅（T4 / §2.3.1）
+  const refreshBtn = $('refreshBtn'); // 手動更新按鈕（T5 / §2.3.1）
+  const syncStatus = $('syncStatus'); // 更新時間旁的同步狀態文字（已是最新 / 更新失敗…，§2.3.1）
 
   // ⚠️ SVG 元素的 `.hidden = true` 只改 IDL property、不會反映成 hidden attribute（Chromium 怪癖），
   // 而 CSS `[hidden] { display:none }` 依賴 attribute → 圖表會"看似隱藏其實仍顯示"。
@@ -40,16 +43,30 @@
     loading: false,
   };
 
-  let INDEX = null;               // fetchIndex 結果（全域；供 loadRoute 篩 trips）
-  let loadToken = 0;              // 競態防護：快速切航線只套用最新請求（F-21）
+  let INDEX = null;               // index 結果（全域；供 loadRoute 篩 trips）
+  let loadToken = 0;              // 競態防護：快速切航線只套用最新請求（F-21 / F-25）
   const abortCtl = new AbortController(); // 頁面卸載中止 fetch（F-22）
   const routeCache = new Map();   // Map<routeId, Week[]>（F-13）
+
+  // ── 離線快取狀態（§2.3.1；cache.js 提供 OfflineCache）──
+  const CACHE_VERSION = 1;                          // 與 cache.js DB_VERSION 連動（D7）；bump → 全量重同步
+  const cacheStore = window.OfflineCache.createIdbStorage();  // 瀏覽器 IDB adapter（E8 失敗由 loadCache 拋錯降級）
+  let CACHE = null;             // { meta, units } 記憶體投影（app.js 與圖表之間唯一快取視圖）
+  let syncing = false;          // 同步進行中旗標（防並行增量同步，F-27）
+  // 同步狀態機（§5.3）：'idle'|'first'|'offline'|'comparing'|'syncing'|'fresh'|'stale'|'compare_failed'|'partial'
+  let syncState = 'idle';
+  let retryTimer = null;              // E3：背景比對失敗 → 30s 排程重試 timer
+  const RETRY_MS = 30_000;            // E3 / F-27：30 秒後自動重試背景比對
 
   // ═══════════════ 資料層（§2.4） ═══════════════
   const API_ROOT = new URL('../', document.baseURI);
 
-  /** 載入 index.json：no-cache 重新驗證 + shape 驗證 */
-  async function fetchIndex() {
+  /**
+   * 抓 index 並記錄 ETag（維持 cache:'no-cache' 強制重新驗證，D6 / §3.1）。
+   * 既有 fetchIndex 的 shape 驗證 + 錯誤碼（ERR_NETWORK / ERR_INDEX_FETCH / ERR_INDEX_INVALID）不變。
+   * @returns {Promise<{json: object, etag: string|null}>}
+   */
+  async function fetchIndexWithEtag() {
     let res;
     try {
       res = await fetch(new URL('api/index.json', API_ROOT), { cache: 'no-cache', signal: abortCtl.signal });
@@ -77,29 +94,60 @@
       err.code = 'ERR_INDEX_INVALID';
       throw err;
     }
-    return json;
+    return { json, etag: res.headers.get('etag') };
   }
 
-  /** 並行載入 trips：Promise pool（同時最多 CONCURRENCY），失敗該筆 null 佔位（F-20） */
-  async function fetchTrips(urls, onProgress, signal) {
+  /**
+   * 條件式 GET 單一 unit（D4）：本地有 etag → 送 If-None-Match；首次無本地 etag → 不帶。
+   * 304/404 不讀 body（S4：統一以 status 判斷）；5xx 回傳 status（呼叫端轉 failed，E4）；
+   * 網路錯誤向上拋（由 Promise pool 轉 failed，E4）。
+   * @returns {Promise<{status: 200|304|404|number, json?: object|null, etag?: string|null}>}
+   */
+  async function fetchUnit(url, { etag, signal }) {
+    const headers = {};
+    if (etag) headers['If-None-Match'] = etag;      // 條件式請求（S1：Pages 回 304）
+    let res;
+    try {
+      res = await fetch(new URL(url, API_ROOT), { headers, signal });
+    } catch (e) {
+      const err = new Error('網路層錯誤');
+      err.code = 'ERR_NETWORK';
+      throw err;
+    }
+    if (res.status === 304) return { status: 304, json: null, etag: null };   // 零 body 不讀
+    if (res.status === 404) return { status: 404, json: null, etag: null };   // E6：以伺服器為準
+    if (!res.ok) return { status: res.status, json: null, etag: null };       // 5xx → failed（E4）
+    const json = await res.json();
+    return { status: 200, json, etag: res.headers.get('etag') };
+  }
+
+  /**
+   * 並行條件式 GET units：Promise pool（同時最多 CONCURRENCY，沿用既有）。
+   * 逐筆失敗不拋錯 → 該筆 {status:'failed'}（E4：保留舊版）；同 URL 重複出現共用結果（與既有 fetchTrips 同）。
+   * @returns {Promise<Array<{url: string, status: 200|304|404|'failed', json?: object|null, etag?: string|null}>>}
+   */
+  async function fetchUnitsConditional(urls, cachedUnits, onProgress, signal) {
     const results = new Array(urls.length);
-    const cache = new Map(); // Map<url, json> 記憶體快取
+    const dedupe = new Map();   // Map<url, result>
     let cursor = 0;
     async function worker() {
       while (cursor < urls.length) {
         const i = cursor++;
         const url = urls[i];
-        if (cache.has(url)) {
-          results[i] = cache.get(url);
+        let rec;
+        if (dedupe.has(url)) {
+          rec = dedupe.get(url);
         } else {
+          const local = (cachedUnits && cachedUnits[url]) || {};
           try {
-            const res = await fetch(new URL(url, API_ROOT), { signal });
-            results[i] = res.ok ? await res.json() : null;
+            const r = await fetchUnit(url, { etag: local.etag || null, signal });
+            rec = { url, status: r.status, json: r.json, etag: r.etag };
           } catch (e) {
-            results[i] = null; // 網路錯誤該筆佔位，不拋錯
+            rec = { url, status: 'failed', json: null, etag: null };   // E4：不拋錯，佔位
           }
-          cache.set(url, results[i]);
+          dedupe.set(url, rec);
         }
+        results[i] = rec;
         if (onProgress) onProgress(i + 1, urls.length);
       }
     }
@@ -108,16 +156,287 @@
     return results;
   }
 
-  /** 載入整條航線（含競態防護與快取） */
+  /** 單筆結果 → 聚合用 json：200 用新內容；304 用本地快取內容；其餘（failed/404/5xx）null */
+  function jsonForResult(r) {
+    if (r.status === 200) return r.json;
+    if (r.status === 304 && CACHE && CACHE.units[r.url]) return CACHE.units[r.url].json;
+    return null;
+  }
+
+  /** routeId → unit URL 清單：以 INDEX.trips 快照篩；快照缺時回退 CACHE.units 鍵 */
+  function unitsUrlsForRoute(routeId) {
+    const pat = '/' + routeId + '/';
+    let urls = INDEX.trips.filter(t => t.includes(pat));
+    if (urls.length === 0 && CACHE) urls = Object.keys(CACHE.units).filter(u => u.includes(pat));
+    return urls;
+  }
+
+  /** 以 IDB units 聚合某航線（零網路；離線可看範圍 = 已快取航線，EC1） */
+  function weeksFromCache(routeId) {
+    const urls = unitsUrlsForRoute(routeId);
+    return aggregateWeekly(urls, urls.map(u => (CACHE.units[u] || {}).json || null));
+  }
+
+  /** 寫回 IDB：QuotaExceededError → quotaDegrade 只保留目前航線（E5）；其他錯誤 → 靜默降級記憶體快取（E8） */
+  async function persistCacheSafe() {
+    try {
+      await OfflineCache.saveCache(cacheStore, CACHE.meta, CACHE.units);
+    } catch (e) {
+      if (e && e.name === 'QuotaExceededError') {
+        const deg = OfflineCache.quotaDegrade(CACHE.units, CACHE.meta, state.route);
+        CACHE.units = deg.units;
+        CACHE.meta = deg.meta;
+        try {
+          await OfflineCache.saveCache(cacheStore, CACHE.meta, CACHE.units);
+        } catch (e2) { /* 仍失敗 → 維持記憶體快取 */ }
+      }
+      // 其餘（IDB 不可用，E8）→ 不拋，頁面以記憶體快取照常運作
+    }
+  }
+
+  /** 同步狀態文字（fresh / compare_failed / partial，§2.3.6）：text 為 null → 隱藏 */
+  function setSyncStatus(text, warn) {
+    syncStatus.hidden = !text;
+    syncStatus.textContent = text || '';
+    syncStatus.classList.toggle('warn', !!warn);
+  }
+
+  /** 手動更新按鈕狀態（E7 / F-16）：disabled + 文字；忙碌時「更新中…」 */
+  function setRefreshDisabled(disabled, label) {
+    refreshBtn.disabled = disabled;
+    refreshBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    if (label !== undefined) refreshBtn.textContent = label;
+  }
+
+  /**
+   * E3：背景比對失敗 → compare_failed 持久化（F-26）+ UI「更新失敗，稍後自動重試」
+   * + 30s 排程重試（F-27）；不中斷瀏覽與圖表操作。
+   */
+  function markCompareFailed() {
+    syncState = 'compare_failed';
+    if (CACHE) {
+      CACHE.meta.lastError = 'compare_failed';
+      persistCacheSafe();
+    }
+    setSyncStatus('更新失敗，稍後自動重試', true);
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => {                 // E3：30s 後自動重試；仍失敗 → 再排程
+      retryTimer = null;
+      if (navigator.onLine) backgroundCompare();
+      else enterOffline();                           // 已離線 → 轉離線狀態（橫幅 + 按鈕停用）
+    }, RETRY_MS);
+  }
+
+  // ═══════════════ 離線狀態層（T4 / §2.3.4） ═══════════════
+
+  /**
+   * 進入離線：橫幅「離線模式 · 顯示上次資料（HH:MM）」；不發請求；手動更新停用（E7）；
+   * 無快取（E1 首次即離線）→ 由錯誤卡負責，不重複顯示橫幅。
+   */
+  function enterOffline() {
+    syncState = 'offline';
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }   // 中斷自動重試（重連後重新比對）
+    setRefreshDisabled(true, '離線中，無法更新');                       // 按鈕 disabled + 文字（E7）
+    syncStatus.hidden = true;                                           // 離線狀態由橫幅 + 更新時間負責
+    if (!CACHE || !CACHE.meta || !CACHE.meta.syncedAt) return;          // 無快取 → E1 錯誤卡（不重複）
+    offBar.textContent = '離線模式 · 顯示上次資料（' + formatLastUpdated(CACHE.meta.syncedAt) + '）';
+    offBar.hidden = false;
+  }
+
+  /**
+   * 重連：online 事件 → 關橫幅、恢復按鈕；
+   * 若上次為 offline / compare_failed / partial → 自動重跑背景比對（不需重新整理，EC3 / F-27）。
+   */
+  function onOnline() {
+    offBar.hidden = true;
+    setRefreshDisabled(false, '手動更新');
+    if (syncState === 'offline' || syncState === 'compare_failed' || syncState === 'partial') {
+      backgroundCompare();
+    }
+  }
+  window.addEventListener('online', onOnline);
+  window.addEventListener('offline', enterOffline);
+
+  /**
+   * E2：離線切到從未載入航線 → 該 tab 顯示「此航線尚未下載，需連網」（~3s 淡出）+ 停留原航線。
+   * 不切換、不出錯誤卡、不白屏、不發請求（§2.3.4 / F-21）。
+   */
+  function showRouteHint(tabBtn) {
+    let hint = tabBtn.querySelector('.hint');
+    if (!hint) {
+      hint = document.createElement('span');
+      hint.className = 'hint';
+      hint.setAttribute('role', 'status');
+      hint.setAttribute('aria-live', 'polite');
+      tabBtn.appendChild(hint);
+    }
+    hint.textContent = '此航線尚未下載，需連網';
+    hint.classList.remove('fade');
+    clearTimeout(tabBtn._hintTimer);
+    tabBtn._hintTimer = setTimeout(() => {
+      hint.classList.add('fade');
+      setTimeout(() => hint.remove(), 350);          // fade 動畫結束後移除 DOM
+    }, 3000);
+  }
+
+  /**
+   * 手動更新（T5 / D6 / E7）：連網才可用（離線停用，BR3）；無快取（E1 後）→ 重跑首次載入。
+   * force=true → 強制 no-cache 抓 index + 完整增量同步（不受自動比對結果影響）。
+   * syncing 旗標與忙碌狀態由 incrementalSync 自管（F-27 防並行；避免自擋）。
+   */
+  async function manualUpdate() {
+    if (syncing || state.loading || !navigator.onLine) return;   // E7 離線停用；F-27 防並行
+    if (!CACHE) { await firstLoad(); return; }                   // E1 錯誤卡後的重試路徑
+    await incrementalSync({ force: true });
+  }
+  refreshBtn.addEventListener('click', manualUpdate);
+
+  /** updText →「資料更新 YYYY-MM-DD · 每週五更新」（INDEX 為最新 index） */
+  function setUpdTextFromIndex() {
+    updText.textContent = '資料更新 ' + formatGeneratedAt(INDEX.generated_at) + ' · 每週五更新';
+  }
+
+  /**
+   * 同步完成後重建記憶體 routeCache：只重算「資料有變更」的航線（affected），
+   * 目前航線未受影響 → 不重繪（F-25：同步不覆寫使用者正在看的視圖）。
+   */
+  function refreshRouteCache(affected) {
+    const map = OfflineCache.routeUnitsFromIndex(INDEX);
+    const currentAffected = (map[state.route] || []).some(u => affected.has(u));
+    for (const [routeId, urls] of Object.entries(map)) {
+      if (urls.some(u => affected.has(u))) {
+        routeCache.set(routeId, aggregateWeekly(urls, urls.map(u => (CACHE.units[u] || {}).json || null)));
+      }
+    }
+    // 航線整個離開 index 清單 → 自記憶體快取移除
+    for (const routeId of Array.from(routeCache.keys())) {
+      if (!map[routeId]) routeCache.delete(routeId);
+    }
+    if (currentAffected) {
+      renderFlightSel(routeCache.get(state.route) || []);
+      setUpdTextFromIndex();
+      buildChart();
+    }
+  }
+
+  /** 背景比對（情境 B/C）：抓 index → decideSync 三態分流（fresh = 0 個 trip 請求）；E3 失敗不中斷瀏覽 */
+  async function backgroundCompare() {
+    if (syncing) return;                 // 與手動更新互斥（F-27）
+    syncState = 'comparing';
+    try {
+      const { json } = await fetchIndexWithEtag();
+      await incrementalSync({ index: json });
+    } catch (e) {
+      markCompareFailed();               // E3：請求失敗即視為離線處理（EC2），不卡住
+    }
+  }
+
+  /**
+   * 增量同步（F-09 / D4）：
+   *   decideSync 三態 → update：diffUnits → 條件式 GET 每個 unit（304 保留 / 200 覆寫+新 etag / 404 移除 / 失敗保留舊版）
+   *   → mergeSyncResults → saveCache（meta.generatedAt / syncedAt / lastError / retryList）→ 記憶體 routeCache → 圖表更新。
+   * @param {{force?: boolean, index?: object|null}} opts
+   *   force=true（T5 手動更新呼叫）：強制 no-cache 重新抓 index 並跑完整增量，不受自動比對結果影響（D6 / BR3）；
+   *   index 已由背景比對抓取 → 直接帶入避免重抓。
+   */
+  async function incrementalSync({ force = false, index = null } = {}) {
+    if (syncing || !CACHE) return;       // F-27：防並行增量同步；無快取（E1 後）不增量
+    syncing = true;
+    syncState = 'syncing';
+    setRefreshDisabled(true, '更新中…');  // 同步中按鈕忙碌狀態（§2.3.6 syncing）
+    try {
+      let json = index;
+      if (!json) {
+        const r = await fetchIndexWithEtag();   // force=true：強制重新驗證 index（D6）
+        json = r.json;
+      }
+      const decision = OfflineCache.decideSync(CACHE.meta.generatedAt, json.generated_at);
+      if (decision === 'fresh') {
+        // 「已是最新」0 個 trip 請求（情境 B / E2E-07）；updText 改為資料更新日期（§2.3.6 fresh）
+        syncState = 'fresh';
+        updText.textContent = '資料更新 ' + formatGeneratedAt(json.generated_at) + ' · 每週五更新';
+        setSyncStatus('已是最新');
+        return;
+      }
+      if (decision === 'stale') {                                   // 伺服器較舊：保留本地新資料，不覆寫（D3）
+        syncState = 'stale';
+        showStale(CACHE.meta.generatedAt);
+        return;
+      }
+      // update：增量同步（情境 C）
+      INDEX = json;
+      const map = OfflineCache.routeUnitsFromIndex(json);
+      const allUrls = [];
+      for (const urls of Object.values(map)) allUrls.push(...urls);
+      const diff = OfflineCache.diffUnits(CACHE.units, allUrls);
+      // removed：不在新清單 → 一律移除本地（E6 語意，40 週滑窗）
+      let nextUnits = { ...CACHE.units };
+      for (const url of diff.removed) {
+        nextUnits = OfflineCache.applyUnitResult(nextUnits, url, 404).units;
+      }
+      // 待請求 = 新增 + 既有（帶本地 etag 條件式 GET）+ 上次失敗重試清單（E4 去重）
+      const todo = Array.from(new Set([
+        ...diff.added, ...diff.kept, ...((CACHE.meta && CACHE.meta.retryList) || []),
+      ]));
+      if (todo.length === 0) { syncState = 'fresh'; setSyncStatus('已是最新'); return; }
+      progress.hidden = false;
+      try {
+        const results = await fetchUnitsConditional(todo, CACHE.units, (loaded, total) => {
+          progress.textContent = '已載入 ' + loaded + '/' + total;
+        }, abortCtl.signal);
+        const merged = OfflineCache.mergeSyncResults(CACHE.meta, nextUnits, results, json.generated_at);
+        if (diff.removed.length > 0) merged.meta.generatedAt = json.generated_at; // 移除亦是對齊新清單（避免下次重複重驗證）
+        merged.meta.indexTrips = json.trips;                                     // 離線 unit 清單快照同步更新
+        CACHE.meta = merged.meta;
+        CACHE.units = merged.units;
+        await persistCacheSafe();
+        // 記憶體 routeCache 重建（只重算受影響航線；目前航線未變 → 不重繪，F-25）
+        const affected = new Set(diff.removed);
+        for (const r of results) if (r.status === 200 || r.status === 404) affected.add(r.url);
+        refreshRouteCache(affected);
+        syncState = merged.failed.length > 0 ? 'partial' : 'fresh';
+        // E4：部分失敗 →「部分資料更新失敗」（成功者已更新）；全成功 →「已是最新」
+        setSyncStatus(merged.failed.length > 0 ? '部分資料更新失敗' : '已是最新', merged.failed.length > 0);
+      } finally {
+        progress.hidden = true;
+      }
+    } catch (e) {
+      markCompareFailed();               // E3：index 抓取失敗 → compare_failed（F-26）
+    } finally {
+      syncing = false;
+      setRefreshDisabled(!navigator.onLine, navigator.onLine ? '手動更新' : '離線中，無法更新');
+    }
+  }
+
+  /**
+   * 載入整條航線：記憶體 routeCache → IDB 快取（hasCache，離線可用）→ 網路（條件式 GET + 寫回 IDB）；
+   * 離線且無快取 → null（T4：tab「此航線尚未下載，需連網」提示兜底）。
+   */
   async function loadRoute(routeId, onProgress) {
-    if (routeCache.has(routeId)) return routeCache.get(routeId); // F-13 命中快取
-    const token = ++loadToken;
+    if (routeCache.has(routeId)) return routeCache.get(routeId);   // F-13 命中快取
+    // IDB 快取命中 → 直接聚合繪圖（F-14 / EC1：離線也可完整操作，不需網路）
+    if (CACHE && OfflineCache.hasCache(CACHE.units, CACHE.meta, routeId)) {
+      const weeks = weeksFromCache(routeId);
+      routeCache.set(routeId, weeks);
+      return weeks;
+    }
+    // 離線且無快取 → 不發任何請求
+    if (!navigator.onLine) return null;
+    const token = ++loadToken;            // 競態防護：快速切航線只套用最新請求（F-21 / F-25）
     // 依 index.trips 路徑中的航線目錄篩該航線 URL（值為 'api/trips/TPE-NRT/...'，航線在路徑段）
     const urls = INDEX.trips.filter(t => t.includes('/' + routeId + '/'));
-    const tripJsons = await fetchTrips(urls, onProgress, abortCtl.signal);
+    const fetched = await fetchUnitsConditional(urls, CACHE ? CACHE.units : {}, onProgress, abortCtl.signal);
     if (token !== loadToken) return null; // 過期回應丟棄（F-21）
-    const weeks = aggregateWeekly(urls, tripJsons);
+    const weeks = aggregateWeekly(urls, fetched.map(jsonForResult));
     routeCache.set(routeId, weeks);
+    // 寫回 IDB（連網切未載入航線 → 載入並寫入快取，F-23 / E2E-05）
+    if (CACHE && fetched.some(r => r.status === 200)) {
+      for (const r of fetched) {
+        if (r.status === 200) CACHE.units[r.url] = { etag: r.etag || null, json: r.json };
+      }
+      CACHE.meta.routeLoadedAt = { ...(CACHE.meta.routeLoadedAt || {}), [routeId]: new Date().toISOString() };
+      await persistCacheSafe();
+    }
     return weeks;
   }
 
@@ -184,6 +503,11 @@
     routeTabs.addEventListener('click', async e => {
       const b = e.target.closest('button[data-route]');
       if (!b || b.dataset.route === state.route || state.loading) return;
+      // E2：離線切到從未載入航線 → tab 提示 + 停留原航線（不切換、不發請求、不出錯誤卡）
+      if (!navigator.onLine && !OfflineCache.hasCache(CACHE ? CACHE.units : {}, CACHE ? CACHE.meta : null, b.dataset.route)) {
+        showRouteHint(b);
+        return;
+      }
       state.route = b.dataset.route;
       renderRouteTabs();
       setLoading(true);
@@ -419,6 +743,7 @@
       ERR_INDEX_FETCH: ['無法讀取資料目錄（HTTP 非 2xx）', '請稍後重試'],
       ERR_INDEX_INVALID: ['資料目錄格式異常', '請稍後重試'],
       ERR_NETWORK: ['網路連線失敗', '請檢查網路後重試'],
+      ERR_OFFLINE_FIRST: ['需要網路才能首次載入資料', '請連網後點「重試」'],   // E1（T4）
     };
     const [title, hint] = msgs[code] || ['資料載入失敗', '請稍後重試'];
     errDetail.textContent = title + '（' + code + '）— ' + hint;
@@ -445,10 +770,86 @@
     buildChart();
   }
 
+  /** 首次載入（情境 A / E1）：全量載入預設航線 + 寫快取（meta 為 commit 點，§2.3.2） */
+  async function firstLoad() {
+    setLoading(true);
+    try {
+      const { json } = await fetchIndexWithEtag();
+      INDEX = json;
+      // 過舊警示 + 更新時間（F-10 / F-15）
+      setUpdTextFromIndex();
+      if (isStale(INDEX.generated_at)) showStale(INDEX.generated_at);
+      // 空資料（E7）
+      if (!INDEX.trips.length) {
+        setLoading(false);
+        emptyBox.hidden = false;
+        setChartHidden(true);
+        summary.hidden = true; // 無資料：Summary 三卡整區隱藏
+        return;
+      }
+      // 全量載入預設航線（首次無本地 etag → 不帶 If-None-Match；收集 etag 供快取）
+      const urls = INDEX.trips.filter(t => t.includes('/' + state.route + '/'));
+      const fetched = await fetchUnitsConditional(urls, {}, (loaded, total) => {
+        progress.textContent = '已載入 ' + loaded + '/' + total;
+      }, abortCtl.signal);
+      const weeks = aggregateWeekly(urls, fetched.map(jsonForResult));
+      routeCache.set(state.route, weeks);
+      renderFlightSel(weeks);
+      skeleton.hidden = true;
+      setChartHidden(false);
+      emptyBox.hidden = true;
+      buildChart();
+      setLoading(false);   // 先解除 loading（IDB 寫入不阻塞 UI，E2E-14b）
+      // 寫快取（meta.generatedAt / syncedAt / indexTrips / routeLoadedAt）
+      const units = {};
+      for (const r of fetched) {
+        if (r.status === 200) units[r.url] = { etag: r.etag || null, json: r.json };
+      }
+      CACHE = {
+        meta: {
+          version: CACHE_VERSION,
+          generatedAt: INDEX.generated_at,
+          syncedAt: new Date().toISOString(),
+          indexTrips: INDEX.trips,
+          routeLoadedAt: { [state.route]: new Date().toISOString() },
+          lastError: null,
+          retryList: [],
+        },
+        units,
+      };
+      if (Object.keys(units).length > 0) await persistCacheSafe();   // 全失敗 → 不寫快取（避免空快取毒化下次秒開）
+      syncState = fetched.some(r => r.status !== 200) ? 'partial' : 'fresh';
+    } catch (e) {
+      setLoading(false);
+      // E1：首次訪問即離線（無快取）→ 錯誤卡「需要網路才能首次載入資料」+ 重試（連網後點重試重跑首次載入）
+      if (!navigator.onLine || e.code === 'ERR_NETWORK') showError('ERR_OFFLINE_FIRST');
+      else showError(e.code || 'ERR_NETWORK');
+      return;
+    }
+  }
+
+  /** 快取優先繪圖（F-14 秒開）：以 IDB units 直接聚合目前航線，零網路、無骨架閃爍 */
+  function drawCurrentRouteFromCache() {
+    const weeks = weeksFromCache(state.route);
+    routeCache.set(state.route, weeks);
+    renderFlightSel(weeks);
+    setChartHidden(false);
+    emptyBox.hidden = true;
+    buildChart();
+  }
+
   async function init() {
+    // 0. 註冊 SW（T6 / §2.3.2 步驟 0）：僅 http(s) 且支援時註冊（localhost 為 secure context）；
+    //    失敗靜默降級（file:// / 不支援 → 純記憶體快取，頁面仍可用，§9.1 / E8）
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      navigator.serviceWorker.register('sw.js').catch(() => {}); // 靜默，不影響功能
+    }
     errBox.hidden = true;
     emptyBox.hidden = true;
     staleBar.hidden = true;
+    offBar.hidden = true;              // 離線橫幅 / 同步狀態 / 按鈕重置（重試重跑 init 時）
+    syncStatus.hidden = true;
+    setRefreshDisabled(false, '手動更新');
     renderRouteTabs();
     renderRangeSeg();
     initControls();
@@ -458,29 +859,34 @@
       showError('ERR_ORIGIN_FORBIDDEN');
       return;
     }
-    // 2. 載入 index
-    setLoading(true);
+
+    // 2. cache-first 啟動（T3）：讀 IDB 快取；失敗（E8 無痕 / IDB 不可用）→ 視同無快取走首次載入
+    let cached = null;
     try {
-      INDEX = await fetchIndex();
+      cached = await OfflineCache.loadCache(cacheStore);
     } catch (e) {
-      setLoading(false);
-      showError(e.code || 'ERR_NETWORK');
+      cached = null; // E8：降級為既有記憶體 routeCache 行為（頁面仍可用）
+    }
+    if (!cached) {
+      syncState = 'first';
+      await firstLoad();
       return;
     }
-    // 3. 過舊警示 + 更新時間（F-10 / F-15）
-    updText.textContent = '資料更新 ' + formatGeneratedAt(INDEX.generated_at) + ' · 每週五更新';
-    if (isStale(INDEX.generated_at)) showStale(INDEX.generated_at);
-    // 4. 空資料（E7）
-    if (!INDEX.trips.length) {
-      setLoading(false);
-      emptyBox.hidden = false;
-      setChartHidden(true);
-      summary.hidden = true; // 無資料：Summary 三卡整區隱藏
+
+    // 3. 有快取 → 立即以快取繪圖（秒開，情境 B/C/D）+「上次更新 HH:MM」
+    CACHE = cached;
+    INDEX = { trips: CACHE.meta.indexTrips || [] };   // 離線切航線時以快取快照篩 unit（D7）
+    updText.textContent = '上次更新 ' + formatLastUpdated(CACHE.meta.syncedAt);
+    drawCurrentRouteFromCache();
+
+    // 4. 離線 → 離線橫幅 + 不發任何請求 + E2 降級（情境 D / §2.3.4）
+    if (!navigator.onLine) {
+      enterOffline();
       return;
     }
-    // 5. 載入預設航線
-    await drawCurrentRoute();
-    setLoading(false);
+
+    // 5. 連網 → 背景比對（情境 B/C；E3 失敗 → compare_failed，不中斷瀏覽）
+    backgroundCompare();
   }
 
   // tooltip 事件（事件委派）
