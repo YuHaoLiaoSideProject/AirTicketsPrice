@@ -250,6 +250,55 @@ test('F-16 detectPeak 區間含邊界；區間外 null', () => {
   assert.equal(Agg.detectPeak('2026-09-19'), null);
 });
 
+// ── F-16b 動態旺季區間（api/index.json.peaks 帶入；fallback 設計）──
+test('F-16b getPeaks 預設為 CONFIG.PEAKS（fallback）', () => {
+  assert.equal(Agg.getPeaks(), CONFIG.PEAKS);
+});
+
+test('F-16b setPeaks 後同 label 被覆蓋、未帶 label 保留（合併語意）', () => {
+  const saved = Agg.getPeaks();
+  try {
+    // 資料帶入：2028 過年（自動計算）＋同名的農曆過年被覆蓋為 2028 區間
+    Agg.setPeaks([{ label: '農曆過年', from: '2028-01-22', to: '2028-01-29' }]);
+    assert.equal(Agg.detectPeak('2028-01-22'), '農曆過年'); // 起點
+    assert.equal(Agg.detectPeak('2028-01-29'), '農曆過年'); // 終點
+    assert.equal(Agg.detectPeak('2028-01-30'), null);
+    assert.equal(Agg.detectPeak('2027-02-06'), null);       // 2027 過年已被 2028 覆蓋
+    // 未帶的 label（手動櫻花季）保留：合併語意，不因自動化消失（D5）
+    assert.equal(Agg.detectPeak('2027-03-27'), '櫻花季');
+    assert.equal(Agg.detectPeak('2027-04-03'), '櫻花季');
+  } finally {
+    Agg.setPeaks(saved);
+  }
+});
+
+test('F-16b setPeaks 合併後依 from 排序', () => {
+  const saved = Agg.getPeaks();
+  try {
+    Agg.setPeaks([{ label: '農曆過年', from: '2028-01-22', to: '2028-01-29' }]);
+    const merged = Agg.getPeaks();
+    const froms = merged.map(p => p.from);
+    assert.deepEqual(froms, [...froms].sort());
+    assert.ok(merged.some(p => p.label === '櫻花季'), '櫻花季應保留');
+  } finally {
+    Agg.setPeaks(saved);
+  }
+});
+
+test('F-16b setPeaks 非陣列／空陣列不更新（保留 fallback）', () => {
+  const saved = Agg.getPeaks();
+  try {
+    Agg.setPeaks(null);
+    assert.equal(Agg.getPeaks(), saved);
+    Agg.setPeaks('bad');
+    assert.equal(Agg.getPeaks(), saved);
+    Agg.setPeaks([]);
+    assert.equal(Agg.getPeaks(), saved);
+  } finally {
+    Agg.setPeaks(saved);
+  }
+});
+
 // ── F-17 Summary 純計算 ──
 test('F-17 summaryData 最便宜週（範圍內）/ 全域平均 / 旺季高峰', () => {
   const weeks = Agg.aggregateWeekly(

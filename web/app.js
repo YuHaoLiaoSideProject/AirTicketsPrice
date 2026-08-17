@@ -12,6 +12,7 @@
     aggregateWeekly, globalAverage, diffPct, filterRange,
     minMark, detectPeak, isStale, originAllowed, formatGeneratedAt, formatLastUpdated, summaryData,
     hasAnyPrice,
+    setPeaks, getPeaks,
   } = window.PriceAgg;
 
   // ═══════════════ DOM refs ═══════════════
@@ -207,6 +208,8 @@
       err.code = 'ERR_INDEX_INVALID';
       throw err;
     }
+    // 旺季區間隨 index 帶入（農曆過年曆法自動計算；舊資料無 peaks → 保留 fallback）
+    setPeaks(json.peaks);
     return { json, etag: res.headers.get('etag') };
   }
 
@@ -703,7 +706,7 @@
     chart.appendChild(cap);
 
     // 旺季區塊（在可見範圍內定位；含重疊裁切）
-    CONFIG.PEAKS.forEach(p => {
+    getPeaks().forEach(p => {
       const start = visible.findIndex(w => w.d >= p.from);
       if (start < 0) return;
       if (visible[start].d > p.to) return; // 可見範圍在旺季結束之後 → 無交集，避免單格殘影

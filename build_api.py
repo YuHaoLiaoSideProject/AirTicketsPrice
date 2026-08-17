@@ -14,6 +14,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import holidays
+
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
 API_DIR = ROOT / "api"
@@ -107,6 +109,9 @@ def main() -> int:
     trips = build_trips(records)
 
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    # 旺季區間（農曆過年由 holidays.py 曆法自動帶出；舊資料視窗不跨年時可能為空）
+    dates = [r["outbound_date"] for r in records if r.get("outbound_date")]
+    peaks = holidays.peaks_in_range(min(dates), max(dates)) if dates else []
     index = {
         "generated_at": generated_at,
         "source": "starlux_official_api",
@@ -115,6 +120,7 @@ def main() -> int:
         "latest_snapshot_records": len(latest),
         "routes": sorted({r["route_id"] for r in records}),
         "trip_count": len(trips),
+        "peaks": peaks,
         "files": files_meta,
         "latest_file": files_meta[-1]["file"] if files_meta else None,
         "latest": "api/latest.json",

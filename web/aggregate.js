@@ -54,6 +54,30 @@
   // 聚合純函式
   // ════════════════════════════════════════════════════════════
 
+  // 動態旺季區間（api/index.json.peaks 帶入；資料未帶/離線時 fallback 至上方 CONFIG.PEAKS）
+  let activePeaks = CONFIG.PEAKS;
+
+  /**
+   * 以 index.json 的 peaks 更新旺季區間（來源決策：docs/tech-decisions/農曆過年旺季-2026-08-15.md D4）。
+   * 合併語意：資料帶入的 label（如自動計算的農曆過年）覆蓋同 label；
+   * 未出現的 label（如手動維護的櫻花季）保留 CONFIG.PEAKS 值 → 手動設定不被自動化覆蓋（D5）。
+   * 非陣列／空陣列 → 不更新（保留 fallback，舊資料/畸形輸入安全）。
+   * @param {Array<{label: string, from: string, to: string}>} peaks
+   */
+  function setPeaks(peaks) {
+    if (!Array.isArray(peaks) || peaks.length === 0) return;
+    const byLabel = new Map(peaks.map(p => [p.label, p]));
+    activePeaks = CONFIG.PEAKS
+      .filter(p => !byLabel.has(p.label))   // 手動保留：資料沒帶的 label
+      .concat(peaks)
+      .sort((a, b) => String(a.from).localeCompare(String(b.from)));
+  }
+
+  /** 目前生效的旺季區間（含 fallback）。 */
+  function getPeaks() {
+    return activePeaks;
+  }
+
   /**
    * 每航班取 history 最新一筆（scraped_at 最大）。
    * @param {object} flight - api/trips 檔內的航班物件
@@ -216,7 +240,7 @@
    */
   function detectPeak(d) {
     if (!d) return null;
-    for (const p of CONFIG.PEAKS) {
+    for (const p of activePeaks) {
       if (d >= p.from && d <= p.to) return p.label;
     }
     return null;
@@ -307,6 +331,8 @@
     filterRange,
     sanitizeRange,
     minMark,
+    setPeaks,
+    getPeaks,
     detectPeak,
     isStale,
     originAllowed,
