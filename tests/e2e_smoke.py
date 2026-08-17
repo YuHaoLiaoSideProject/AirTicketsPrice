@@ -143,7 +143,11 @@ def run_tests(browser):
     page.goto(URL + '/web/')
     wait_chart(page)
     check('E2E-01 預設東京 tab active', page.locator('#routeTabs button.active').inner_text().startswith('東京'))
-    check('E2E-01 更新時間 badge', '資料更新 2026-08-14' in page.locator('#updText').inner_text())
+    # 動態比對：badge 日期 = api/index.json 的 generated_at（每次 build 後時間戳會變，不寫死避免脆測）
+    with open(os.path.join(ROOT, 'api', 'index.json'), encoding='utf-8') as f:
+        exp_date = json.load(f)['generated_at'][:10]
+    check('E2E-01 更新時間 badge', f'資料更新 {exp_date}' in page.locator('#updText').inner_text(),
+          f'期望 {exp_date}')
     tab_count = page.locator('#routeTabs button').count()
     check('E2E-01 航線 tab 有 4 個（含福岡/札幌）', tab_count == 4, f'got {tab_count}')
     check('E2E-02 折線繪出', page.locator('#chart path.price-line').count() == 1)
