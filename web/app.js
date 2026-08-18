@@ -705,8 +705,9 @@
     cap.textContent = '出發日期（週六）· 單位 TWD 來回';
     chart.appendChild(cap);
 
-    // 旺季區塊（在可見範圍內定位；含重疊裁切）
+    // 旺季區塊（在可見範圍內定位；含重疊裁切；地區性 peaks 依當前航線過濾，如櫻花季）
     getPeaks().forEach(p => {
+      if (p.routes && !p.routes.includes(state.route)) return; // 不屬於此航線的旺季不畫
       const start = visible.findIndex(w => w.d >= p.from);
       if (start < 0) return;
       if (visible[start].d > p.to) return; // 可見範圍在旺季結束之後 → 無交集，避免單格殘影
@@ -784,7 +785,7 @@
       esc(flightLabel) + ' · 顯示 ' + esc(rangeLabel()) + '（共 ' + n + ' 週）';
     chart.setAttribute('aria-label', '票價趨勢圖：' + routeInfo.name + ' ' + state.route + '，' + flightLabel + '，' + rangeLabel());
 
-    renderSummary(visible, avg);
+    renderSummary(visible, avg, state.route);
   }
 
   // ═══════════════ Tooltip（§2.7） ═══════════════
@@ -825,8 +826,8 @@
   function hideTip() { tip.classList.remove('show'); }
 
   // ═══════════════ Summary（§2.7） ═══════════════
-  function renderSummary(visible, avg) {
-    const s = summaryData(visible, avg);
+  function renderSummary(visible, avg, routeId) {
+    const s = summaryData(visible, avg, routeId);
     if (!s.minWeek) {
       // 可見範圍無有效價（如全缺週的早期區間）：Summary 整區隱藏
       summary.hidden = true;

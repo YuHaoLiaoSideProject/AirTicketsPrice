@@ -34,10 +34,14 @@
       { key: '12m', label: '12 個月', weeks: 40 }, // 資料僅 40 週，12 個月與全部同為 40 週
       { key: 'all', label: '全部',    weeks: 40 },
     ],
-    // 旺季區間（以出發日期判斷；⚠️ 每年過年前手動更新，明年可由爬蟲設定自動帶出）
+    // 旺季區間（以出發日期判斷；⚠️ 每年過年前手動更新）
+    // 農曆過年全域；櫻花季花期隨地區不同 → 拆兩筆以 routes 限定航線（札幌比本州晚約 4 週）
+    // 參考開花日：東京/大阪/福岡 ≈ 3 月底~4 月初（idx 32–33）；札幌 ≈ 4 月底~5 月初（idx 36–37）
+    // routes 省略 → 全域（向後相容；資料帶入的 peaks 同樣適用，見 detectPeak）
     PEAKS: [
       { label: '農曆過年', from: '2027-01-30', to: '2027-02-06' }, // 40 週 idx 24–25
-      { label: '櫻花季',   from: '2027-03-27', to: '2027-04-03' }, // 40 週 idx 32–33
+      { label: '櫻花季',   from: '2027-03-27', to: '2027-04-03', routes: ['TPE-NRT', 'TPE-KIX', 'TPE-FUK'] }, // 本州
+      { label: '櫻花季',   from: '2027-04-24', to: '2027-05-01', routes: ['TPE-CTS'] }, // 北海道（札幌）
     ],
     Y: { MIN: 12000, MAX: 42000 },   // 四航線統一 Y 軸，可比性一致
     SVG: { W: 900, H: 330, M: { l: 60, r: 14, t: 22, b: 36 } },
@@ -62,7 +66,8 @@
    * 合併語意：資料帶入的 label（如自動計算的農曆過年）覆蓋同 label；
    * 未出現的 label（如手動維護的櫻花季）保留 CONFIG.PEAKS 值 → 手動設定不被自動化覆蓋（D5）。
    * 非陣列／空陣列 → 不更新（保留 fallback，舊資料/畸形輸入安全）。
-   * @param {Array<{label: string, from: string, to: string}>} peaks
+   * @param {Array<{label: string, from: string, to: string, routes?: string[]}>} peaks
+   *   routes 可選：缺省 = 全域；有值 = 僅這些航線套用（與 detectPeak(d, routeId) 搭配）。
    */
   function setPeaks(peaks) {
     if (!Array.isArray(peaks) || peaks.length === 0) return;
@@ -234,13 +239,17 @@
   }
 
   /**
-   * 旺季判定：出發日期落在任一 PEAKS 區間（含邊界）→ 回傳該區塊 label；否則 null。
+   * 旺季判定：出發日期落在任一 PEAKS 區間（含邊界），且符合航線 → 回傳該區塊 label；否則 null。
+   * 航線篩選：peak 帶 routes（如地區性櫻花季）時只套用於列出的航線；routes 缺省 → 全域。
+   * routeId 省略 → 不篩選（與舊行為一致，供不帶航線語境呼叫）。
    * @param {string} d - 'YYYY-MM-DD'
+   * @param {string} [routeId] - 'TPE-NRT' 等航線 id
    * @returns {string|null}
    */
-  function detectPeak(d) {
+  function detectPeak(d, routeId) {
     if (!d) return null;
     for (const p of activePeaks) {
+      if (p.routes && routeId && !p.routes.includes(routeId)) continue;
       if (d >= p.from && d <= p.to) return p.label;
     }
     return null;
@@ -303,18 +312,19 @@
    *    範圍內無旺季週 → 範圍內最高價週並標註「（非旺季區間）」
    * @param {object[]} weeks - 可見範圍週資料
    * @param {number|null} avg - 全域平均
+   * @param {string} [routeId] - 航線 id（旺季高峰判定依航線篩選，如地區性櫻花季）
    * @returns {{ minWeek: object|null, avg: number|null, peakWeek: object|null, peakNote: string }}
    */
-  function summaryData(weeks, avg) {
+  function summaryData(weeks, avg, routeId) {
     const valid = weeks.filter(w => w.min !== null && w.min !== undefined);
     if (valid.length === 0) {
       return { minWeek: null, avg, peakWeek: null, peakNote: '' };
     }
     const minWeek = valid.reduce((a, b) => (b.min < a.min ? b : a), valid[0]);
-    const inPeak = valid.filter(w => detectPeak(w.d) !== null);
+    const inPeak = valid.filter(w => detectPeak(w.d, routeId) !== null);
     if (inPeak.length > 0) {
       const peakWeek = inPeak.reduce((a, b) => (b.min > a.min ? b : a), inPeak[0]);
-      return { minWeek, avg, peakWeek, peakNote: detectPeak(peakWeek.d) };
+      return { minWeek, avg, peakWeek, peakNote: detectPeak(peakWeek.d, routeId) };
     }
     const peakWeek = valid.reduce((a, b) => (b.min > a.min ? b : a), valid[0]);
     return { minWeek, avg, peakWeek, peakNote: '（非旺季區間）' };

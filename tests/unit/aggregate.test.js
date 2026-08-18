@@ -250,6 +250,24 @@ test('F-16 detectPeak 區間含邊界；區間外 null', () => {
   assert.equal(Agg.detectPeak('2026-09-19'), null);
 });
 
+// ── F-16a 地區性旺季（routes 限定航線；札幌誤標修正）──
+test('F-16a detectPeak 帶 routeId：櫻花季依航線分區（本州 vs 札幌）', () => {
+  // 本州區間（3/27~4/3）只標東京/大阪/福岡；札幌不標
+  assert.equal(Agg.detectPeak('2027-03-27', 'TPE-NRT'), '櫻花季');
+  assert.equal(Agg.detectPeak('2027-04-03', 'TPE-KIX'), '櫻花季');
+  assert.equal(Agg.detectPeak('2027-03-27', 'TPE-CTS'), null); // 札幌花期較晚，不誤標
+  assert.equal(Agg.detectPeak('2027-04-03', 'TPE-CTS'), null);
+  // 札幌區間（4/24~5/1）只標札幌
+  assert.equal(Agg.detectPeak('2027-04-24', 'TPE-CTS'), '櫻花季');
+  assert.equal(Agg.detectPeak('2027-05-01', 'TPE-CTS'), '櫻花季');
+  assert.equal(Agg.detectPeak('2027-04-24', 'TPE-NRT'), null);
+  assert.equal(Agg.detectPeak('2027-04-24', 'TPE-KIX'), null);
+  assert.equal(Agg.detectPeak('2027-05-01', 'TPE-FUK'), null);
+  // 全域 peak（農曆過年，無 routes）不受 routeId 影響
+  assert.equal(Agg.detectPeak('2027-01-30', 'TPE-CTS'), '農曆過年');
+  assert.equal(Agg.detectPeak('2027-02-06', 'TPE-NRT'), '農曆過年');
+});
+
 // ── F-16b 動態旺季區間（api/index.json.peaks 帶入；fallback 設計）──
 test('F-16b getPeaks 預設為 CONFIG.PEAKS（fallback）', () => {
   assert.equal(Agg.getPeaks(), CONFIG.PEAKS);
@@ -316,6 +334,27 @@ test('F-17 summaryData 最便宜週（範圍內）/ 全域平均 / 旺季高峰'
   // 旺季高峰：範圍內（無旺季週）→ 取範圍內最高價週並標註非旺季
   assert.equal(s.peakWeek.d, '2026-08-15');
   assert.equal(s.peakNote, '（非旺季區間）');
+});
+
+// ── F-17b summaryData 帶 routeId：旺季高峰判定依航線（地區性櫻花季）──
+test('F-17b summaryData 帶 routeId：札幌 4/24 週為櫻花季、東京視為非旺季', () => {
+  const weeks = [
+    { d: '2027-04-17', min: 20000 },
+    { d: '2027-04-24', min: 40000 }, // 札幌櫻花季區間（routes: TPE-CTS）
+    { d: '2027-05-01', min: 38000 }, // 札幌櫻花季區間
+  ];
+  const avg = 30000;
+  // TPE-CTS：4/24 為札幌櫻花季週 → 旺季高峰標櫻花季
+  let s = Agg.summaryData(weeks, avg, 'TPE-CTS');
+  assert.equal(s.peakWeek.d, '2027-04-24');
+  assert.equal(s.peakNote, '櫻花季');
+  // TPE-NRT：4/24 不在本州櫻花季區間 → 非旺季（取範圍內最高價週）
+  s = Agg.summaryData(weeks, avg, 'TPE-NRT');
+  assert.equal(s.peakWeek.d, '2027-04-24');
+  assert.equal(s.peakNote, '（非旺季區間）');
+  // routeId 省略：與舊行為一致（不篩選 → 4/24 落在札幌區間 → 櫻花季）
+  s = Agg.summaryData(weeks, avg);
+  assert.equal(s.peakNote, '櫻花季');
 });
 
 // ── 聚合輸出排序（aggregateWeekly 依出發日期排序）──
