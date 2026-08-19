@@ -107,6 +107,14 @@ body {
 .gap-dot { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .sold-out-label { fill: var(--muted); font-size: 10px; }
 
+/* ── 漲跌 badge（chart dot ring） ── */
+.dot.up { fill: var(--danger); }
+.dot.down { fill: var(--success); }
+.change-badge { font-size: 9px; font-weight: 700; font-family: var(--mono); pointer-events: none; }
+.change-badge.up { fill: var(--danger); }
+.change-badge.down { fill: var(--success); }
+.change-badge.flat { fill: var(--muted); }
+
 /* ── Tooltip ── */
 .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); padding: 0.55rem 0.75rem; font-size: 0.75rem; line-height: 1.6; opacity: 0; transition: opacity 0.15s ease; z-index: 5; min-width: 168px; }
 .tip.show { opacity: 1; }
@@ -200,6 +208,61 @@ body {
 .sub-status.unavailable {               /* E3：提醒功能暫時不可用 */
   color: var(--warning); background: var(--warning-light);
   border-color: rgba(227,116,0,0.35);
+}
+
+/* ═══ 每週漲跌表（scrape-vs-scrape 變動）═══ */
+.change-table-wrap {
+  margin: 0.8rem 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.change-table-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0.55rem 0.85rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.change-table-container {
+  overflow-x: auto;
+}
+.ct-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.ct-table th {
+  text-align: left;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.ct-table td {
+  padding: 0.4rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.ct-table tr:last-child td { border-bottom: none; }
+.ct-table tr:hover td { background: var(--surface-2); }
+.ct-table .ct-date { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.ct-table .ct-price { font-family: var(--mono); font-weight: 600; }
+.ct-table .ct-change { font-weight: 700; font-family: var(--mono); }
+.ct-table .ct-change.drop { color: var(--success); }
+.ct-table .ct-change.rise { color: var(--danger); }
+.ct-table .ct-change.flat { color: var(--muted); }
+.ct-table .ct-change.none { color: var(--muted); font-weight: 400; }
+.ct-table .ct-abs { font-size: 0.7rem; color: var(--muted); font-family: var(--mono); margin-left: 0.3rem; }
+.ct-empty {
+  padding: 1.2rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 /* ── RWD ── */

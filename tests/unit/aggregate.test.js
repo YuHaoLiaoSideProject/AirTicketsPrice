@@ -367,3 +367,103 @@ test('aggregateWeekly 輸出依出發日期排序（不依傳入順序）', () =
   const weeks = Agg.aggregateWeekly(urls, jsons);
   assert.deepEqual(weeks.map(w => w.d), ['2026-08-15', '2026-08-22']);
 });
+
+// ═══════════════ 漲跌計算（scrape-vs-scrape）═══════════════
+
+// F-C1 prevLatestPrice：取 history 次新一筆
+test('F-C1 prevLatestPrice 取倒數第二筆（上次抓取價格）', () => {
+  const flight = {
+    outbound_flight_no: 'JX 800',
+    history: [
+      { scraped_at: '2026-08-07T10:00:00.000Z', price_total: 26008, status: 'Available' },
+      { scraped_at: '2026-08-14T10:00:00.000Z', price_total: 24120, status: 'Available' },
+    ],
+  };
+  const prev = Agg.prevLatestPrice(flight);
+  assert.equal(prev.price, 26008);
+});
+
+test('F-C1b prevLatestPrice 只有 1 筆 history → null', () => {
+  const flight = {
+    outbound_flight_no: 'JX 800',
+    history: [
+      { scraped_at: '2026-08-14T10:00:00.000Z', price_total: 24120, status: 'Available' },
+    ],
+  };
+  const prev = Agg.prevLatestPrice(flight);
+  assert.equal(prev.price, null);
+});
+
+test('F-C1c prevLatestPrice 空 history / null 輸入 → null', () => {
+  assert.equal(Agg.prevLatestPrice(null).price, null);
+  assert.equal(Agg.prevLatestPrice({ history: [] }).price, null);
+  assert.equal(Agg.prevLatestPrice({ history: null }).price, null);
+});
+
+// F-C2 calcChange：漲跌計算
+test('F-C2 calcChange 正常計算（降價 / 漲價 / 不變）', () => {
+  let r = Agg.calcChange(24120, 26008);
+  assert.equal(r.change, -1888);
+  assert.equal(r.changePct, -7);  // round(-1888/26008*100) = -7
+  r = Agg.calcChange(30000, 26008);
+  assert.equal(r.change, 3992);
+  assert.equal(r.changePct, 15);  // round(3992/26008*100) = 15
+  r = Agg.calcChange(26008, 26008);
+  assert.equal(r.change, 0);
+  assert.equal(r.changePct, 0);
+});
+
+test('F-C2b calcChange 任一為 null / prev=0 → change null', () => {
+  assert.deepEqual(Agg.calcChange(null, 26008), { change: null, changePct: null });
+  assert.deepEqual(Agg.calcChange(24120, null), { change: null, changePct: null });
+  assert.deepEqual(Agg.calcChange(24120, 0), { change: null, changePct: null });
+});
+
+// F-C3 formatChangePct：格式化顯示
+test('F-C3 formatChangePct 降價/漲價/不變/null', () => {
+  assert.equal(Agg.formatChangePct(-7), '↓ -7%');
+  assert.equal(Agg.formatChangePct(15), '↑ +15%');
+  assert.equal(Agg.formatChangePct(0), '— 0%');
+  assert.equal(Agg.formatChangePct(null), '—');
+  assert.equal(Agg.formatChangePct(undefined), '—');
+});
+
+// F-C4 aggregateWeek 新增漲跌欄位
+test('F-C4 aggregateWeek 包含 minPrev/minChange/minChangePct/fc', () => {
+  const trip = mkTrip('2026-09-05', '2026-09-13', [{
+    outbound_flight_no: 'JX 800',
+    history: [
+      { scraped_at: '2026-08-07T10:00:00.000Z', price_total: 20000, status: 'Available' },
+      { scraped_at: '2026-08-14T10:00:00.000Z', price_total: 17638, status: 'Available' },
+    ],
+  }]);
+  const w = Agg.aggregateWeek(trip);
+  assert.equal(w.min, 17638);
+  assert.equal(w.minPrev, 20000);
+  assert.equal(w.minChange, -2362);
+  assert.ok(w.minChangePct < 0);  // 降價
+  // fc 也包含變動
+  assert.deepEqual(w.fc['JX 800'].prevPrice, 20000);
+  assert.equal(w.fc['JX 800'].change, -2362);
+});
+
+test('F-C4b aggregateWeek 只有 1 筆 history → 漲跌欄位為 null', () => {
+  const trip = mkTrip('2026-09-05', '2026-09-13', [
+    mkFlight('JX 800', 20000),  // mkFlight 只有 1 筆 history
+  ]);
+  const w = Agg.aggregateWeek(trip);
+  assert.equal(w.min, 20000);
+  assert.equal(w.minPrev, null);
+  assert.equal(w.minChange, null);
+  assert.equal(w.minChangePct, null);
+  assert.equal(w.fc['JX 800'].prevPrice, null);
+});
+
+test('F-C4c aggregateWeek 缺資料週 → 漲跌欄位皆為 null', () => {
+  const w = Agg.aggregateWeek(null);
+  assert.equal(w.min, null);
+  assert.equal(w.minPrev, null);
+  assert.equal(w.minChange, null);
+  assert.equal(w.minChangePct, null);
+  assert.deepEqual(w.fc, {});
+});

@@ -13,6 +13,7 @@
     minMark, detectPeak, isStale, originAllowed, formatGeneratedAt, formatLastUpdated, summaryData,
     hasAnyPrice,
     setPeaks, getPeaks,
+    formatChangePct, calcChange,
   } = window.PriceAgg;
 
   // ═══════════════ DOM refs ═══════════════
@@ -29,6 +30,8 @@
   const syncStatus = $('syncStatus'); // 更新時間旁的同步狀態文字（已是最新 / 更新失敗…，§2.3.1）
   const installBtn = $('installBtn'); // PWA 安裝按鈕（T4 / §2.5 ①；初始 hidden）
   const iosHint = $('iosHint');       // iOS「加到主畫面」提示（T4 / §2.5 ②；初始 hidden）
+  const changeTableWrap = $('changeTableWrap'); // 每週漲跌表容器
+  const changeTableEl = $('changeTable');        // 每週漲跌表內容
 
   // ⚠️ SVG 元素的 `.hidden = true` 只改 IDL property、不會反映成 hidden attribute（Chromium 怪癖），
   // 而 CSS `[hidden] { display:none }` 依賴 attribute → 圖表會"看似隱藏其實仍顯示"。
@@ -676,6 +679,7 @@
       sumAvg.textContent = '—';
       sumPeak.textContent = '—'; sumPeakS.textContent = '';
       summary.hidden = true;
+      changeTableWrap.hidden = true; // 漲跌表也隱藏
       return;
     }
     const visible = filterRange(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
@@ -746,7 +750,7 @@
     });
     if (hasLine) chart.appendChild(svgEl('path', { d, 'class': 'price-line' }));
 
-    // 資料點 circle + 售罄/缺資料標示
+    // 資料點 circle + 售罄/缺資料標示 + 漲跌 badge
     pts.forEach(p => {
       if (p.y === null) {
         // 缺資料/售罄週：平均線高度畫空心虛線圈（gap-dot）
@@ -758,10 +762,28 @@
         }
         return;
       }
-      const c = svgEl('circle', { cx: p.x, cy: p.y, r: 4, 'class': 'dot', tabindex: '0', role: 'button' });
+      // 資料點 dot（含漲跌色彩 class）
+      let dotClass = 'dot';
+      if (p.w.minChangePct !== null && p.w.minChangePct !== undefined) {
+        if (p.w.minChangePct < 0) dotClass += ' down';
+        else if (p.w.minChangePct > 0) dotClass += ' up';
+      }
+      const c = svgEl('circle', { cx: p.x, cy: p.y, r: 4, 'class': dotClass, tabindex: '0', role: 'button' });
       c.setAttribute('data-i', p.i);
       c.setAttribute('aria-label', '出發 ' + p.w.d + '，價格 ' + fmt(p.price));
       chart.appendChild(c);
+
+      // 漲跌 badge（只顯示有變動且變動 > 1% 的點，避免過度 clutter）
+      if (p.w.minChangePct !== null && p.w.minChangePct !== undefined && Math.abs(p.w.minChangePct) >= 1) {
+        const isDrop = p.w.minChangePct < 0;
+        const badgeClass = isDrop ? 'change-badge down' : (p.w.minChangePct > 0 ? 'change-badge up' : 'change-badge flat');
+        const badgeText = (isDrop ? '↓' : '↑') + ' ' + Math.abs(p.w.minChangePct) + '%';
+        // badge 位置：降價 → dot 上方；漲價 → dot 下方（避免與折線重疊）
+        const badgeY = isDrop ? p.y - 11 : p.y + 15;
+        const badge = svgEl('text', { x: p.x, y: badgeY, 'class': badgeClass, 'text-anchor': 'middle' });
+        badge.textContent = badgeText;
+        chart.appendChild(badge);
+      }
     });
 
     // 可見範圍最低價標記（F-05）
@@ -786,6 +808,7 @@
     chart.setAttribute('aria-label', '票價趨勢圖：' + routeInfo.name + ' ' + state.route + '，' + flightLabel + '，' + rangeLabel());
 
     renderSummary(visible, avg, state.route);
+    renderChangeTable(visible);
   }
 
   // ═══════════════ Tooltip（§2.7） ═══════════════
@@ -798,6 +821,21 @@
       const diff = diffPct(price, avg);
       html += '<div class="t-price">' + fmt(price) + '</div>' +
         '<div class="' + (diff <= 0 ? 't-low' : 't-high') + '">比平均' + (diff <= 0 ? '便宜' : '貴') + ' ' + Math.abs(diff) + '%</div>';
+      // 漲跌資訊（scrape-vs-scrape）
+      if (state.flight !== 'all') {
+        const fc = w.fc && w.fc[state.flight];
+        if (fc && fc.changePct !== null && fc.changePct !== undefined) {
+          const cls = fc.changePct <= 0 ? 't-low' : 't-high';
+          const arrow = fc.changePct < 0 ? '↓' : '↑';
+          html += '<div class="' + cls + '">較上次 ' + formatChangePct(fc.changePct) +
+            '（' + arrow + ' ' + fmt(Math.abs(fc.change)) + '）</div>';
+        }
+      } else if (w.minChangePct !== null && w.minChangePct !== undefined) {
+        const cls = w.minChangePct <= 0 ? 't-low' : 't-high';
+        const arrow = w.minChangePct < 0 ? '↓' : '↑';
+        html += '<div class="' + cls + '">較上次 ' + formatChangePct(w.minChangePct) +
+          '（' + arrow + ' ' + fmt(Math.abs(w.minChange)) + '）</div>';
+      }
     } else if (w.status === 'sold_out') {
       html += '<div class="t-none">本週已售罄</div>';
     } else {
@@ -825,12 +863,46 @@
   }
   function hideTip() { tip.classList.remove('show'); }
 
+  // ═══════════════ 每週漲跌表（scrape-vs-scrape 變動）═══════════════
+  function renderChangeTable(visible) {
+    // 只顯示有變動資料的週（minChangePct !== null）
+    const rows = visible.filter(w =>
+      w.min !== null && w.minChangePct !== null && w.minChangePct !== undefined
+    );
+    if (rows.length === 0) {
+      changeTableWrap.hidden = true;
+      return;
+    }
+    changeTableWrap.hidden = false;
+    let html = '<table class="ct-table"><thead><tr>' +
+      '<th>出發週</th><th>回程週</th><th>最低價</th><th>上次價格</th><th>漲跌</th><th>幅度</th>' +
+      '</tr></thead><tbody>';
+    for (const w of rows) {
+      const isDrop = w.minChangePct < 0;
+      const isRise = w.minChangePct > 0;
+      const cls = isDrop ? 'drop' : (isRise ? 'rise' : 'flat');
+      const arrow = isDrop ? '↓' : (isRise ? '↑' : '—');
+      const sign = w.minChangePct > 0 ? '+' : '';
+      html += '<tr>' +
+        '<td class="ct-date">' + esc(fmtD(w.d)) + '</td>' +
+        '<td class="ct-date">' + esc(fmtD(w.r)) + '</td>' +
+        '<td class="ct-price">' + fmt(w.min) + '</td>' +
+        '<td class="ct-price">' + fmt(w.minPrev) + '</td>' +
+        '<td class="ct-change ' + cls + '">' + arrow + ' ' + sign + w.minChangePct + '%</td>' +
+        '<td class="ct-change ' + cls + '">' + (w.minChange >= 0 ? '+' : '') + fmt(Math.abs(w.minChange)) + '</td>' +
+        '</tr>';
+    }
+    html += '</tbody></table>';
+    changeTableEl.innerHTML = html;
+  }
+
   // ═══════════════ Summary（§2.7） ═══════════════
   function renderSummary(visible, avg, routeId) {
     const s = summaryData(visible, avg, routeId);
     if (!s.minWeek) {
       // 可見範圍無有效價（如全缺週的早期區間）：Summary 整區隱藏
       summary.hidden = true;
+      changeTableWrap.hidden = true;
       return;
     }
     summary.hidden = false;
@@ -902,6 +974,7 @@
         emptyBox.hidden = false;
         setChartHidden(true);
         summary.hidden = true; // 無資料：Summary 三卡整區隱藏
+        changeTableWrap.hidden = true;
         return;
       }
       // 全量載入預設航線（首次無本地 etag → 不帶 If-None-Match；收集 etag 供快取）

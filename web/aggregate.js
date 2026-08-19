@@ -101,28 +101,84 @@
   }
 
   /**
+   * 每航班取 history 次新一筆（倒數第二筆 scraped_at）：與 latestPrice 比較算漲跌。
+   * history 只有 1 筆 → 回傳 null（無法比較）。
+   * @param {object} flight - api/trips 檔內的航班物件
+   * @returns {{ price: number|null, status: string|null }}
+   */
+  function prevLatestPrice(flight) {
+    if (!flight || !Array.isArray(flight.history) || flight.history.length < 2) {
+      return { price: null, status: null };
+    }
+    const sorted = [...flight.history].sort((a, b) => a.scraped_at.localeCompare(b.scraped_at));
+    const prev = sorted[sorted.length - 2];
+    const status = prev && prev.status ? prev.status : null;
+    const p = prev && typeof prev.price_total === 'number' ? prev.price_total : null;
+    return { price: status === 'Available' ? p : null, status };
+  }
+
+  /**
+   * 計算單航班的價格漲跌（本次 vs 上次）。
+   * @param {number|null} current - 本次價格
+   * @param {number|null} prev - 上次價格
+   * @returns {{ change: number|null, changePct: number|null }}
+   */
+  function calcChange(current, prev) {
+    if (current === null || prev === null || prev === 0) {
+      return { change: null, changePct: null };
+    }
+    const change = current - prev;
+    const changePct = Math.round(change / prev * 100);
+    return { change, changePct };
+  }
+
+  /**
+   * 格式化漲跌顯示（供 tooltip 與表格共用）。
+   * @param {number|null} changePct
+   * @returns {string} 如 '↓ -8%' / '↑ +5%' / '—'
+   */
+  function formatChangePct(changePct) {
+    if (changePct === null || changePct === undefined) return '—';
+    if (changePct > 0) return '↑ +' + changePct + '%';
+    if (changePct < 0) return '↓ ' + changePct + '%';
+    return '— 0%';
+  }
+
+  /**
    * 聚合單週：min = 各航班最新價之最小值（非 null 才納入）。
    * 狀態判定：trip 檔不存在/無 flights → 'missing'；
    *          全部航班最新 status 皆非 Available → 'sold_out'；
    *          其餘 → 'ok'（min 可能為 null 表示部分航班缺價）。
+   * 漲跌：fc = 每航班的價格變動；minPrev/minChange/minChangePct = 最低價航班的變動。
    * @param {object|null} tripJson - api/trips 單檔內容；null = 檔案不存在
    * @returns {object} Week 資料點
    */
   function aggregateWeek(tripJson) {
     if (!tripJson || !Array.isArray(tripJson.flights) || tripJson.flights.length === 0) {
-      return { d: null, r: null, min: null, f: {}, status: 'missing' };
+      return { d: null, r: null, min: null, minPrev: null, minChange: null, minChangePct: null, f: {}, fc: {}, status: 'missing' };
     }
     const f = {};
+    const fc = {};  // flight changes: flight_no → { prevPrice, change, changePct }
     let min = null;
+    let minPrev = null;
     let anyAvailable = false;
     let anyFlight = false;
     for (const fl of tripJson.flights) {
       anyFlight = true;
       const { price, status } = latestPrice(fl);
+      const prev = prevLatestPrice(fl);
       f[fl.outbound_flight_no] = price;
+      // 計算漲跌
+      const { change, changePct } = calcChange(price, prev.price);
+      fc[fl.outbound_flight_no] = { prevPrice: prev.price, change, changePct };
       if (status === 'Available') anyAvailable = true;
-      if (price !== null && (min === null || price < min)) min = price;
+      if (price !== null && (min === null || price < min)) {
+        min = price;
+        minPrev = prev.price;
+      }
     }
+    // 最低價航班的漲跌
+    const minChangeObj = calcChange(min, minPrev);
     let status = 'ok';
     if (!anyFlight) status = 'missing';
     else if (!anyAvailable) status = 'sold_out';
@@ -130,7 +186,11 @@
       d: tripJson.outbound_date || null,
       r: tripJson.return_date || null,
       min,
+      minPrev,
+      minChange: minChangeObj.change,
+      minChangePct: minChangeObj.changePct,
       f,
+      fc,
       status,
     };
   }
@@ -333,6 +393,9 @@
   return {
     CONFIG,
     latestPrice,
+    prevLatestPrice,
+    calcChange,
+    formatChangePct,
     aggregateWeek,
     aggregateWeekly,
     hasAnyPrice,
