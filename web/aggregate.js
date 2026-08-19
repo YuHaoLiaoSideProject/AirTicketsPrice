@@ -27,12 +27,9 @@
       { id: 'TPE-FUK', name: '福岡' },
       { id: 'TPE-CTS', name: '札幌' },
     ],
-    // 日期範圍：label 用於按鈕與圖表標題；weeks = 取前 N 週
+    // 日期範圍：僅保留「全部」，不限制週數
     RANGES: [
-      { key: '3m',  label: '3 個月',  weeks: 12 },
-      { key: '6m',  label: '6 個月',  weeks: 24 },
-      { key: '12m', label: '12 個月', weeks: 40 }, // 資料僅 40 週，12 個月與全部同為 40 週
-      { key: 'all', label: '全部',    weeks: 40 },
+      { key: 'all', label: '全部', weeks: null },
     ],
     // 旺季區間（以出發日期判斷；⚠️ 每年過年前手動更新）
     // 農曆過年全域；櫻花季花期隨地區不同 → 拆兩筆以 routes 限定航線（札幌比本州晚約 4 週）
@@ -47,7 +44,7 @@
     SVG: { W: 900, H: 330, M: { l: 60, r: 14, t: 22, b: 36 } },
     STALE_DAYS: 14,                  // generated_at 超過 14 天 → 過舊警示
     CONCURRENCY: 8,                  // trips 並行 fetch 上限
-    NUM_WEEKS: 40,                   // 資料模型時間範圍（與 config.py NUM_WEEKS 一致）
+    NUM_WEEKS: Infinity,              // 不限制週數，顯示全部資料
     // 允許的頁面來源（file:// 或 localhost 供開發；Pages 網域為正式）
     ORIGIN_ALLOWLIST: [
       'https://yuhaoliaosideproject.github.io',

@@ -156,7 +156,7 @@
   const state = {
     route: CONFIG.ROUTES[0].id,   // 預設東京 TPE-NRT（F-14）
     flight: 'all',                // 'all' = 每週最低價主線；否則航班號（如 'JX 800'）
-    range: '3m',                  // 預設 3 個月（與 mockup 一致）
+    range: 'all',                 // 預設顯示全部
     loading: false,
   };
 

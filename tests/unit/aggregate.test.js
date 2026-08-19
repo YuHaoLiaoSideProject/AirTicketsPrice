@@ -158,21 +158,20 @@ test('F-03 diffPct 以全域平均為基準（負=便宜、正=貴，四捨五�
 });
 
 // ── F-04 / F-19 範圍篩選與防呆 ──
-test('F-04 filterRange 週數映射（3m=12 / 6m=24 / 12m=40 / all=40）', () => {
-  assert.equal(Agg.filterRange(WEEKS40, 12).length, 12);
-  assert.equal(Agg.filterRange(WEEKS40, 24).length, 24);
-  assert.equal(Agg.filterRange(WEEKS40, 40).length, 40);
-  assert.equal(CONFIG.RANGES.find(r => r.key === '3m').weeks, 12);
-  assert.equal(CONFIG.RANGES.find(r => r.key === '6m').weeks, 24);
-  assert.equal(CONFIG.RANGES.find(r => r.key === '12m').weeks, 40);
-  assert.equal(CONFIG.RANGES.find(r => r.key === 'all').weeks, 40);
+test('F-04 filterRange 仅保留全部，不限制週數', () => {
+  // 僅有 all 選項，weeks = null 表示不限制
+  assert.equal(CONFIG.RANGES.length, 1);
+  assert.equal(CONFIG.RANGES[0].key, 'all');
+  assert.equal(CONFIG.RANGES[0].weeks, null);
+  // filterRange 搭配 Infinity 不截斷
+  assert.equal(Agg.filterRange(WEEKS40, Infinity).length, 40);
 });
 
-test('F-19 sanitizeRange 防呆（空/負/NaN → 40；>40 → 40）', () => {
-  assert.equal(Agg.sanitizeRange(undefined), 40);
-  assert.equal(Agg.sanitizeRange(-5), 40);
-  assert.equal(Agg.sanitizeRange(NaN), 40);
-  assert.equal(Agg.sanitizeRange(999), 40);
+test('F-19 sanitizeRange 防呆（空/負/NaN → Infinity；>0 → 原值）', () => {
+  assert.equal(Agg.sanitizeRange(undefined), Infinity);
+  assert.equal(Agg.sanitizeRange(-5), Infinity);
+  assert.equal(Agg.sanitizeRange(NaN), Infinity);
+  assert.equal(Agg.sanitizeRange(999), 999);
   assert.equal(Agg.sanitizeRange(24), 24);
 });
 

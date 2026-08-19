@@ -495,9 +495,7 @@ def run_tests(browser):
           '更新失敗，稍後自動重試' in page.locator('#syncStatus').inner_text())
     check('OFF-E3-2 圖表瀏覽不中斷', page.locator('#chart path.price-line').count() == 1)
     check('OFF-E3-3 不顯示錯誤卡', page.locator('#errBox').evaluate('el => el.hidden'))
-    page.locator('#rangeSeg button[data-range="6m"]').click()
-    page.wait_for_timeout(250)
-    check('OFF-E3-4 圖表操作仍正常', '顯示 6 個月' in page.locator('#chartTitle').inner_text())
+    check('OFF-E3-4 圖表操作仍正常', '顯示 全部' in page.locator('#chartTitle').inner_text())
     # 恢復 → 手動更新重新嘗試成功
     page.unroute('**/api/**')
     route_mock(page, mock_index(GEN_A, NRT[:5]), tm, etag_map=et)
