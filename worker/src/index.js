@@ -110,9 +110,10 @@ export async function notify(request, env) {
     }
   }
   const sent = names.length - failed.length;
-  return failed.length
-    ? json({ ok: false, sent, failed: failed.length }, 500)
-    : json({ ok: true, sent: names.length, failed: 0 });
+  // 部分成功也算成功（至少 1 人收到 → 200；全部失敗 → 500）
+  return sent === 0 && failed.length > 0
+    ? json({ ok: false, sent: 0, failed: failed.length }, 500)
+    : json({ ok: true, sent, failed: failed.length });
 }
 
 /* ── 純函式（worker/src/index.test.js 直接測試；與 pwa.js formatNotification 同簽名合約）── */

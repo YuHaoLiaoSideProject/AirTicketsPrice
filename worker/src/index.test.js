@@ -458,7 +458,7 @@ test('HDL-07 push service 回 404/410 → 自動刪除失效訂閱（E5），其
   assert.deepEqual([...kv._map.keys()], ['sub:' + good.endpoint], '404/410 訂閱已清理，有效者保留');
 });
 
-test('HDL-11 push service 5xx／網路失敗 → 500 {ok:false, failed:N}，訂閱保留不誤刪', async () => {
+test('HDL-11 push service 5xx／網路失敗：部分成功 → 200 ok:true；全部失敗 → 500 ok:false', async () => {
   const mod = await loadWorker();
   const kv = mkKV();
   const okSub = await mkFakeSub('https://fcm.googleapis.com/fcm/send/hdl11-ok');
@@ -473,9 +473,10 @@ test('HDL-11 push service 5xx／網路失敗 → 500 {ok:false, failed:N}，訂�
     return new Response(null, { status: 201 });
   }, async (f) => {
     const res = await mod.default.fetch(mkReq('POST', '/notify', { token: TOKEN, body: { drops: DROPS } }), mkEnv(kv));
-    assert.equal(res.status, 500, '有失敗 → 500 不誤報成功');
+    // 部分成功（1/3）→ 200 ok:true；CI 不再因個別失敗而紅燈
+    assert.equal(res.status, 200, '部分成功 → 200 不誤報失敗');
     const body = await res.json();
-    assert.equal(body.ok, false);
+    assert.equal(body.ok, true);
     assert.equal(body.failed, 2);
     assert.equal(body.sent, 1, '成功送達 1 筆');
   });
