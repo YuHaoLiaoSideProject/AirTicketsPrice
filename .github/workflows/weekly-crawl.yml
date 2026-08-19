@@ -41,7 +41,6 @@ jobs:
         run: python fetch_prices.py
 
       - name: Build static API
-        if: inputs.skip_crawl != 'true'
         run: python build_api.py
 
       - name: Commit data
@@ -80,11 +79,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -r web/* _site/
-          if [ "${{ inputs.skip_crawl }}" != "true" ]; then
-            cp -r api   _site/
-          else
-            echo "跳過 API 資料，僅更新前端"
-          fi
+          cp -r api   _site/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
