@@ -5,3 +5,6 @@ venv/
 .DS_Store
 worker/.wrangler/
 .wrangler/
+
+# 建置產物（由 CI build_api.py 產生，Pages 部署時才需要）
+api/

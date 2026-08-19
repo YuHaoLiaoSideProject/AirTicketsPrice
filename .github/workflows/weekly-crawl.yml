@@ -36,11 +36,11 @@ jobs:
       - name: Build static API
         run: python build_api.py
 
-      - name: Commit data & api
+      - name: Commit data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/ api/
+          git add data/
           if git diff --cached --quiet; then
             echo "無變更，跳過 commit"
           else
@@ -49,7 +49,7 @@ jobs:
           fi
 
       - name: Detect drops & notify（PWA Phase 2；需先設定 PUSH_API_TOKEN secret）
-        # 位於 Commit 之後（規格 §9.2）：① 基準讀「上一週 data 檔」不受本次 build 污染；
+        # 位於 Commit 之後（規格 §9.2）：① 基準讀「上一週 data 檔」不受本次 build 汙染；
         # ② E6「資料照常提交」語意成立——通知失敗不影響已 commit 的資料。
         # 失敗語意：不需 continue-on-error——step 失敗只讓 workflow 標紅（提示需人工查看，
         # 如 token 輪換／Worker 異常），爬蟲結果仍已照常提交。
@@ -64,3 +64,29 @@ jobs:
           else
             echo "未設定 PUSH_API_TOKEN，跳過通知（Settings → Secrets and variables → Actions 可設定）"
           fi
+
+      # Pages 部署：api/ 已加入 .gitignore，不進版控，建置後直接部署
+      - name: Assemble Pages site
+        run: |
+          mkdir -p _site
+          cp -r web/* _site/
+          cp -r api   _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy-pages:
+    needs: crawl
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
