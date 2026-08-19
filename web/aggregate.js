@@ -390,6 +390,30 @@
     return { minWeek, avg, peakWeek, peakNote: '（非旺季區間）' };
   }
 
+  /**
+   * 判斷該週是否已過期：出發日期 < 今天（UTC 午夜）→ 已過期，不需顯示。
+   * 用於前端過濾：資料保留，畫面不出現。
+   * @param {string|null} d - 出發日期 'YYYY-MM-DD'（UTC）
+   * @returns {boolean} true = 已過期
+   */
+  function isExpired(d) {
+    if (!d) return false; // 缺日期 → 不過濾（保留）
+    const today = new Date();
+    const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    const depart = new Date(d + 'T00:00:00Z');
+    return depart.getTime() < todayUTC;
+  }
+
+  /**
+   * 範圍篩選（含過期過濾）：取前 n 週，再排除出發日期已過期的週。
+   * @param {object[]} weeks
+   * @param {*} n
+   * @returns {object[]}
+   */
+  function filterRangeWithExpiry(weeks, n) {
+    return weeks.slice(0, sanitizeRange(n)).filter(w => !isExpired(w.d));
+  }
+
   return {
     CONFIG,
     latestPrice,
@@ -402,6 +426,8 @@
     globalAverage,
     diffPct,
     filterRange,
+    filterRangeWithExpiry,
+    isExpired,
     sanitizeRange,
     minMark,
     setPeaks,

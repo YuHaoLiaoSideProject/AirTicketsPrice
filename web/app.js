@@ -9,7 +9,7 @@
 
   const {
     CONFIG,
-    aggregateWeekly, globalAverage, diffPct, filterRange,
+    aggregateWeekly, globalAverage, diffPct, filterRangeWithExpiry,
     minMark, detectPeak, isStale, originAllowed, formatGeneratedAt, formatLastUpdated, summaryData,
     hasAnyPrice,
     setPeaks, getPeaks,
@@ -590,10 +590,12 @@
     });
   }
 
-  /** 航班下拉選項 = 該航線所有週 flights 聯集；目前航班不存在 → 回退 all */
+  /** 航班下拉選項 = 該航線所有未過期週 flights 聯集；目前航班不存在 → 回退 all */
   function renderFlightSel(weeks) {
+    const { isExpired } = window.PriceAgg;
     const flightSet = [];
     for (const w of weeks) {
+      if (isExpired(w.d)) continue; // 過期週不出現在航班下拉選項
       for (const no of Object.keys(w.f)) {
         if (!flightSet.includes(no)) flightSet.push(no);
       }
@@ -687,7 +689,7 @@
       changeTableWrap.hidden = true; // 漲跌表也隱藏
       return;
     }
-    const visible = filterRange(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
+    const visible = filterRangeWithExpiry(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
     const avg = globalAverage(weeks); // 全域（不隨範圍漂移，F-06）
     const n = visible.length;
     if (n === 0) return; // 可見範圍無資料（防呆）
@@ -1114,7 +1116,7 @@
     if (!c) { hideTip(); return; }
     const i = +c.dataset.i;
     const weeks = routeCache.get(state.route) || [];
-    const visible = filterRange(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
+    const visible = filterRangeWithExpiry(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
     showTip(visible[i], e);
   });
   chart.addEventListener('mouseleave', hideTip);
@@ -1123,7 +1125,7 @@
     if (!c) return;
     const i = +c.dataset.i;
     const weeks = routeCache.get(state.route) || [];
-    const visible = filterRange(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
+    const visible = filterRangeWithExpiry(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
     // 鍵盤 focus 無滑鼠座標 → 以資料點位置定位 tooltip（E2E-17）
     const rect = c.getBoundingClientRect();
     showTip(visible[i], { clientX: rect.left + rect.width / 2, clientY: rect.top });
