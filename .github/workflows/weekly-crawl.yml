@@ -6,10 +6,10 @@ on:
     - cron: "0 1 * * 5"
   workflow_dispatch:
     inputs:
-      skip_crawl:
-        description: '只更新網頁，不爬取新資料'
+      crawl:
+        description: '爬取新資料（預設只更新網頁）'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
@@ -37,14 +37,15 @@ jobs:
         run: python -c "import random,time; time.sleep(random.uniform(0, 1800))"
 
       - name: Crawl prices
-        if: ${{ !inputs.skip_crawl }}
+        # schedule 觸發時必定爬取；手動觸發時依 input 決定
+        if: ${{ github.event_name == 'schedule' || inputs.crawl }}
         run: python fetch_prices.py
 
       - name: Build static API
         run: python build_api.py
 
       - name: Commit data
-        if: ${{ !inputs.skip_crawl }}
+        if: ${{ github.event_name == 'schedule' || inputs.crawl }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -64,7 +65,7 @@ jobs:
         # 未設定 PUSH_API_TOKEN → shell 條件跳過、不報錯（維持「無 secret 也能跑」）。
         # 注意：secrets / env context 皆不能用於 if: 條件（GitHub Actions 解析限制，
         # 前者報 Unrecognized named-value: 'secrets'）→ 改以 shell 判斷 + job 級 env 注入。
-        if: ${{ !inputs.skip_crawl }}
+        if: ${{ github.event_name == 'schedule' || inputs.crawl }}
         env:
           PUSH_NOTIFY_URL: https://airtickets-price-push.h770320.workers.dev/notify  # 部署後改為實際網域
         run: |
