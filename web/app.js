@@ -176,7 +176,12 @@
   const RETRY_MS = 30_000;            // E3 / F-27：30 秒後自動重試背景比對
 
   // ═══════════════ 資料層（§2.4） ═══════════════
-  const API_ROOT = new URL('../', document.baseURI);
+  // 從 document.baseURI 推算專案根目錄（相容目錄索引與完整 HTML 路徑）
+  const _base = new URL(document.baseURI);
+  const _path = _base.pathname;
+  // 目錄索引（結尾 /）→ 直接用；完整路徑 → 去掉檔名
+  const _dir = _path.endsWith('/') ? _path : _path.replace(/\/[^/]*$/, '/');
+  const API_ROOT = new URL(_dir, _base.origin);
 
   /**
    * 抓 index 並記錄 ETag（維持 cache:'no-cache' 強制重新驗證，D6 / §3.1）。
