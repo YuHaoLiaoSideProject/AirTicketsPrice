@@ -1,20 +1,14 @@
 {
   "route_id": "TPE-CTS",
-  "outbound_date": "2027-05-15",
-  "return_date": "2027-05-23",
-  "url": "api/trips/TPE-CTS/2027-05-15_2027-05-23.json",
+  "outbound_date": "2027-05-22",
+  "return_date": "2027-05-30",
+  "url": "api/trips/TPE-CTS/2027-05-22_2027-05-30.json",
   "flights": [
     {
       "outbound_flight_no": "JX 850",
       "airline_code": "JX",
       "airline_name": "星宇航空",
       "history": [
-        {
-          "scraped_at": "2026-08-14T16:58:04.000Z",
-          "price_total": 23459,
-          "currency": "TWD",
-          "status": "Available"
-        },
         {
           "scraped_at": "2026-08-19T01:59:06.000Z",
           "price_total": 23424,

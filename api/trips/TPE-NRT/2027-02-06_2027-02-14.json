@@ -20,6 +20,12 @@
           "price_total": 42224,
           "currency": "TWD",
           "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-19T01:59:06.000Z",
+          "price_total": 42190,
+          "currency": "TWD",
+          "status": "Available"
         }
       ]
     },
@@ -39,6 +45,12 @@
           "price_total": 40303,
           "currency": "TWD",
           "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-19T01:59:06.000Z",
+          "price_total": 40269,
+          "currency": "TWD",
+          "status": "Available"
         }
       ]
     },
@@ -56,6 +68,12 @@
         {
           "scraped_at": "2026-08-14T16:58:04.000Z",
           "price_total": 37231,
+          "currency": "TWD",
+          "status": "Available"
+        },
+        {
+          "scraped_at": "2026-08-19T01:59:06.000Z",
+          "price_total": 37197,
           "currency": "TWD",
           "status": "Available"
         }

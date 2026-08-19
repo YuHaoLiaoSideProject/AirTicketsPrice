@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-08-17T03:07:40.000Z",
+  "generated_at": "2026-08-19T02:16:10.000Z",
   "source": "starlux_official_api",
   "description": "星宇航空來回票價歷史（去程週六/回程下週日）",
-  "total_records": 478,
-  "latest_snapshot_records": 279,
+  "total_records": 757,
+  "latest_snapshot_records": 287,
   "routes": [
     "TPE-CTS",
     "TPE-FUK",
     "TPE-KIX",
     "TPE-NRT"
   ],
-  "trip_count": 159,
+  "trip_count": 164,
   "peaks": [
     {
       "label": "農曆過年",
@@ -30,12 +30,19 @@
       "url": "data/20260815.json",
       "records": 278,
       "scraped_at": "2026-08-14T16:58:04.000Z"
+    },
+    {
+      "file": "20260819.json",
+      "url": "data/20260819.json",
+      "records": 279,
+      "scraped_at": "2026-08-19T01:59:06.000Z"
     }
   ],
-  "latest_file": "20260815.json",
+  "latest_file": "20260819.json",
   "latest": "api/latest.json",
   "trips": [
     "api/trips/TPE-CTS/2026-08-15_2026-08-23.json",
+    "api/trips/TPE-CTS/2026-08-22_2026-08-30.json",
     "api/trips/TPE-CTS/2026-08-29_2026-09-06.json",
     "api/trips/TPE-CTS/2026-09-05_2026-09-13.json",
     "api/trips/TPE-CTS/2026-09-12_2026-09-20.json",
@@ -74,6 +81,7 @@
     "api/trips/TPE-CTS/2027-05-01_2027-05-09.json",
     "api/trips/TPE-CTS/2027-05-08_2027-05-16.json",
     "api/trips/TPE-CTS/2027-05-15_2027-05-23.json",
+    "api/trips/TPE-CTS/2027-05-22_2027-05-30.json",
     "api/trips/TPE-FUK/2026-08-15_2026-08-23.json",
     "api/trips/TPE-FUK/2026-08-22_2026-08-30.json",
     "api/trips/TPE-FUK/2026-08-29_2026-09-06.json",
@@ -114,6 +122,7 @@
     "api/trips/TPE-FUK/2027-05-01_2027-05-09.json",
     "api/trips/TPE-FUK/2027-05-08_2027-05-16.json",
     "api/trips/TPE-FUK/2027-05-15_2027-05-23.json",
+    "api/trips/TPE-FUK/2027-05-22_2027-05-30.json",
     "api/trips/TPE-KIX/2026-08-15_2026-08-23.json",
     "api/trips/TPE-KIX/2026-08-22_2026-08-30.json",
     "api/trips/TPE-KIX/2026-08-29_2026-09-06.json",
@@ -154,6 +163,7 @@
     "api/trips/TPE-KIX/2027-05-01_2027-05-09.json",
     "api/trips/TPE-KIX/2027-05-08_2027-05-16.json",
     "api/trips/TPE-KIX/2027-05-15_2027-05-23.json",
+    "api/trips/TPE-KIX/2027-05-22_2027-05-30.json",
     "api/trips/TPE-NRT/2026-08-15_2026-08-23.json",
     "api/trips/TPE-NRT/2026-08-22_2026-08-30.json",
     "api/trips/TPE-NRT/2026-08-29_2026-09-06.json",
@@ -193,6 +203,7 @@
     "api/trips/TPE-NRT/2027-04-24_2027-05-02.json",
     "api/trips/TPE-NRT/2027-05-01_2027-05-09.json",
     "api/trips/TPE-NRT/2027-05-08_2027-05-16.json",
-    "api/trips/TPE-NRT/2027-05-15_2027-05-23.json"
+    "api/trips/TPE-NRT/2027-05-15_2027-05-23.json",
+    "api/trips/TPE-NRT/2027-05-22_2027-05-30.json"
   ]
 }
