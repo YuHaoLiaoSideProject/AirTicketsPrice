@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI/UX 設計規格 — 每週票價變動：表格改卡片（比較稿）</title>
+<style>
+/* ════════════════════════════════════════════════════════════
+   設計 Token（對應前端 CSS 變數）
+   ════════════════════════════════════════════════════════════ */
+:root {
+  --accent: #1a73e8; --accent-hover: #1557b0; --accent-light: rgba(26,115,232,0.12);
+  --success: #188038; --success-light: #e6f4ea; --success-border: #a8dab5;
+  --danger: #c5221f; --danger-light: #fce8e6; --danger-border: #f5c6c2;
+  --warning: #e37400; --warning-light: #fff4e5;
+  --radius: 10px; --radius-sm: 6px; --transition: 0.2s ease;
+  --h: 36px; --h-mobile: 44px; --fs: 0.875rem;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+[data-theme="light"] {
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #f6f7f9; --surface-3: #eef0f3;
+  --border: #e3e6ea; --text: #374151; --muted: #9ca3af;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08); --shadow-lg: 0 12px 32px rgba(0,0,0,0.16);
+  --frame: #eef0f3;
+}
+[data-theme="dark"] {
+  --bg: #11191f; --surface: #181e25; --surface-2: #1e2530; --surface-3: #232c38;
+  --border: #262e38; --text: #c7c9ce; --muted: #7d8590;
+  --shadow: 0 2px 16px rgba(0,0,0,0.45); --shadow-lg: 0 12px 36px rgba(0,0,0,0.6);
+  --frame: #0d1318;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  background: var(--bg); color: var(--text); transition: background var(--transition), color var(--transition);
+  padding: 2rem 1.25rem 4rem;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+.topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem; }
+h1 { font-size: 1.35rem; margin: 0; }
+h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
+.sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+.fsub { color: var(--muted); font-size: 0.82rem; margin: 0 0 1rem; line-height: 1.6; }
+.controls { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.segmented { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
+.segmented button { border: none; background: none; color: var(--muted); font-size: 0.85rem; padding: 0.45rem 0.9rem; border-radius: 7px; cursor: pointer; transition: all var(--transition); font-weight: 500; }
+.segmented button:hover { color: var(--text); }
+.segmented button.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+
+.frame { background: var(--frame); border: 1px solid var(--border); border-radius: 14px; padding: 1.6rem 1.5rem 1.8rem; margin-bottom: 1.5rem; }
+.browser-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 1rem; }
+.bdot { width: 11px; height: 11px; border-radius: 50%; }
+.bdot:nth-child(1){ background:#f87171 } .bdot:nth-child(2){ background:#fbbf24 } .bdot:nth-child(3){ background:#34d399 }
+.browser-url { flex: 1; max-width: 420px; margin-left: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.8rem; font-size: 0.75rem; color: var(--muted); }
+.elem-count { font-size: 0.72rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 0.2rem 0.7rem; white-space: nowrap; }
+.elem-count b { color: var(--accent); }
+
+.app-page { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); transition: background var(--transition); overflow: hidden; }
+.app-page.is-mobile { max-width: 390px; margin: 0 auto; }
+
+/* ── BEFORE：原有表格樣式（從 styles.css 複製）── */
+.change-table-wrap {
+  margin: 0.8rem 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.change-table-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0.55rem 0.85rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.change-table-container { overflow-x: auto; }
+.ct-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.ct-table th {
+  text-align: left; padding: 0.45rem 0.7rem; font-size: 0.7rem; font-weight: 600;
+  color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.ct-table td { padding: 0.4rem 0.7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.ct-table tr:last-child td { border-bottom: none; }
+.ct-table tr:hover td { background: var(--surface-2); }
+.ct-table .ct-date { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.ct-table .ct-price { font-family: var(--mono); font-weight: 600; }
+.ct-table .ct-change { font-weight: 700; font-family: var(--mono); }
+.ct-table .ct-change.drop { color: var(--success); }
+.ct-table .ct-change.rise { color: var(--danger); }
+.ct-table .ct-change.flat { color: var(--muted); }
+
+/* ── AFTER：卡片样式 ── */
+.change-cards-wrap {
+  margin: 0.8rem 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.change-cards-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0.55rem 0.85rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.change-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+.ccard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: default;
+  transition: box-shadow var(--transition), transform var(--transition);
+  position: relative;
+}
+.ccard:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+.ccard:focus-visible {
+  outline: 3px solid var(--accent-light);
+  outline-offset: 2px;
+}
+.ccard-date {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ccard-date svg { width: 12px; height: 12px; flex-shrink: 0; }
+.ccard-price {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--mono);
+  line-height: 1.3;
+}
+.ccard-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.ccard-change.drop {
+  color: var(--success);
+  background: var(--success-light);
+}
+.ccard-change.rise {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+.ccard-change.flat {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.ccard-change svg { width: 14px; height: 14px; }
+.ccard-prev {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 6px;
+  font-family: var(--mono);
+}
+.ccard-prev s { text-decoration: line-through; opacity: 0.7; }
+
+/* ── 元件規格（anatomy）── */
+.anatomy { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.1rem; }
+@media (max-width: 760px) { .anatomy { grid-template-columns: 1fr; } }
+.anat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem 1.1rem; }
+.anat-card h4 { margin: 0 0 0.8rem; font-size: 0.92rem; display: flex; align-items: center; gap: 0.4rem; }
+.anat-card h4 .tag { font-size: 0.62rem; font-weight: 700; background: var(--accent-light); color: var(--accent); border-radius: 20px; padding: 0.12rem 0.5rem; }
+.anat-stage { background: var(--frame); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1rem; margin-bottom: 0.85rem; }
+.anat-dims { font-size: 0.74rem; color: var(--muted); line-height: 1.8; }
+.anat-dims b { color: var(--accent); font-family: var(--mono); }
+
+/* 狀態矩陣表 */
+.states { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem; }
+.states th, .states td { border: 1px solid var(--border); padding: 0.55rem 0.75rem; text-align: left; vertical-align: top; }
+.states th { background: var(--surface-2); font-size: 0.74rem; color: var(--muted); font-weight: 700; }
+.states td:first-child { white-space: nowrap; font-weight: 600; }
+.states .demo-cell { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.states code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.35rem; font-size: 0.72rem; font-family: var(--mono); }
+
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.5rem 1.5rem; margin-top: 1rem; }
+.anno { display: flex; gap: 0.55rem; font-size: 0.8rem; color: var(--muted); align-items: flex-start; line-height: 1.55; }
+.anno .num { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+.anno b { color: var(--text); }
+
+.note { font-size: 0.78rem; color: var(--muted); margin-top: 1rem; line-height: 1.7; background: var(--surface); border: 1px dashed var(--border); border-radius: 10px; padding: 0.6rem 0.9rem; }
+.note b { color: var(--accent); }
+
+/* Token 卡片 */
+.tokens { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+.tcard { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 0.95rem; }
+.tcard .tk { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.4px; }
+.tcard .tv { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-top: 0.2rem; }
+.tcard .tv.accent { color: var(--accent); }
+.tcard .td { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.5; }
+
+.footnote { margin-top: 2rem; font-size: 0.72rem; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 0.75rem; line-height: 1.7; }
+
+/* mobile 切換 */
+.frame.mobile-frame { display: none; }
+body.view-mobile .frame.mobile-frame { display: block; }
+body.view-mobile .frame.desktop-frame { display: none; }
+.mobile-frame .app-page { max-width: 390px; margin: 0 auto; }
+.mobile-frame .change-cards { grid-template-columns: 1fr; }
+
+/* BEFORE label */
+.badge-before { display: inline-block; font-size: 0.68rem; font-weight: 700; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 0.15rem 0.6rem; margin-bottom: 0.75rem; }
+.badge-after { display: inline-block; font-size: 0.68rem; font-weight: 700; color: var(--accent); background: var(--accent-light); border: 1px solid rgba(26,115,232,0.3); border-radius: 20px; padding: 0.15rem 0.6rem; margin-bottom: 0.75rem; }
+</style>
+</head>
+<body data-theme="light">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <h1>每週票價變動：表格改卡片</h1>
+      <div class="sub">比較稿 · BEFORE（表格）vs AFTER（卡片）· 設計規格</div>
+    </div>
+    <div class="controls">
+      <div class="segmented" id="devSwitch">
+        <button data-dev="desktop" class="active">🖥 Desktop</button>
+        <button data-dev="mobile">📱 Mobile</button>
+      </div>
+      <button class="segmented" id="themeToggle" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;">🌙 切換深色</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 1. 設計 Token ══════════ -->
+  <div class="frame">
+    <h2>1️⃣ 設計 Token</h2>
+    <p class="fsub">卡片元件共用的設計基礎，對應前端 CSS 變數。</p>
+    <div class="tokens">
+      <div class="tcard"><div class="tk">卡片圓角</div><div class="tv accent">10px</div><div class="td">與 Summary 三卡一致（<code>--radius</code>）</div></div>
+      <div class="tcard"><div class="tk">卡片 padding</div><div class="tv">12px 16px</div><div class="td">內距統一，內容不貼邊</div></div>
+      <div class="tcard"><div class="tk">卡片間距</div><div class="tv">10px</div><div class="td">grid gap，群組內緊湊</div></div>
+      <div class="tcard"><div class="tk">價格字級</div><div class="tv">1.05rem</div><div class="td">當前最低價（bold, mono）</div></div>
+      <div class="tcard"><div class="tk">漲跌 badge</div><div class="tv">pill shape</div><div class="td">20px 圓角 + 語意色背景</div></div>
+      <div class="tcard"><div class="tk">動畫</div><div class="tv">150ms</div><div class="td">hover 陰影淡入 · 尊重 reduced-motion</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════ 2. Desktop BEFORE / AFTER ══════════ -->
+  <div class="frame desktop-frame">
+    <h2>2️⃣ 完整畫面與互動</h2>
+    <p class="fsub">模擬真實資料（東京 TPE-NRT，2027 年初幾週的變動），展示 BEFORE 與 AFTER 差異。</p>
+
+    <div class="browser-bar">
+      <span class="bdot"></span><span class="bdot"></span><span class="bdot"></span>
+      <span class="browser-url">https://yuhaoliaosideproject.github.io/AirTicketsPrice/</span>
+      <span class="elem-count">互動：hover 卡片 · 切換深色</span>
+    </div>
+
+    <!-- BEFORE -->
+    <div class="app-page" style="padding: 0;">
+      <div style="padding: 0.75rem 1rem;">
+        <span class="badge-before">BEFORE — 表格</span>
+      </div>
+      <div class="change-table-wrap" style="margin: 0 0 1rem; border-radius: 0; border-left: none; border-right: none; border-bottom: none;">
+        <div class="change-table-title">每週票價變動（與上次抓取比較）</div>
+        <div class="change-table-container">
+          <table class="ct-table">
+            <thead><tr>
+              <th>出發週</th><th>回程週</th><th>最低價</th><th>上次價格</th><th>漲跌</th><th>幅度</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td class="ct-date">01/30</td>
+                <td class="ct-date">02/07</td>
+                <td class="ct-price">NT$37,720</td>
+                <td class="ct-price">NT$35,100</td>
+                <td class="ct-change rise">↑ +7%</td>
+                <td class="ct-change rise">+NT$2,620</td>
+              </tr>
+              <tr>
+                <td class="ct-date">02/06</td>
+                <td class="ct-date">02/14</td>
+                <td class="ct-price">NT$39,783</td>
+                <td class="ct-price">NT$37,720</td>
+                <td class="ct-change rise">↑ +5%</td>
+                <td class="ct-change rise">+NT$2,063</td>
+              </tr>
+              <tr>
+                <td class="ct-date">02/13</td>
+                <td class="ct-date">02/21</td>
+                <td class="ct-price">NT$22,400</td>
+                <td class="ct-price">NT$39,783</td>
+                <td class="ct-change drop">↓ -44%</td>
+                <td class="ct-change drop">-NT$17,383</td>
+              </tr>
+              <tr>
+                <td class="ct-date">02/20</td>
+                <td class="ct-date">02/28</td>
+                <td class="ct-price">NT$19,800</td>
+                <td class="ct-price">NT$22,400</td>
+                <td class="ct-change drop">↓ -12%</td>
+                <td class="ct-change drop">-NT$2,600</td>
+              </tr>
+              <tr>
+                <td class="ct-date">02/27</td>
+                <td class="ct-date">03/07</td>
+                <td class="ct-price">NT$18,500</td>
+                <td class="ct-price">NT$19,800</td>
+                <td class="ct-change drop">↓ -7%</td>
+                <td class="ct-change drop">-NT$1,300</td>
+              </tr>
+              <tr>
+                <td class="ct-date">03/06</td>
+                <td class="ct-date">03/14</td>
+                <td class="ct-price">NT$17,200</td>
+                <td class="ct-price">NT$18,500</td>
+                <td class="ct-change drop">↓ -7%</td>
+                <td class="ct-change drop">-NT$1,300</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- AFTER -->
+      <div style="padding: 0.75rem 1rem 0;">
+        <span class="badge-after">AFTER — 卡片</span>
+      </div>
+      <div class="change-cards-wrap" style="margin: 0; border-radius: 0; border-left: none; border-right: none; border-bottom: none;">
+        <div class="change-cards-title">每週票價變動（與上次抓取比較）</div>
+        <div class="change-cards">
+          <!-- Card 1: 漲價 -->
+          <div class="ccard" tabindex="0" role="listitem" aria-label="01/30 出發，最低價 NT$37,720，較上次漲 7%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              01/30 出發 → 02/07 回程
+            </div>
+            <div class="ccard-price">NT$37,720</div>
+            <div class="ccard-change rise">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+              +7%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$35,100</s> · +NT$2,620</div>
+          </div>
+
+          <!-- Card 2: 漲價 -->
+          <div class="ccard" tabindex="0" role="listitem" aria-label="02/06 出發，最低價 NT$39,783，較上次漲 5%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              02/06 出發 → 02/14 回程
+            </div>
+            <div class="ccard-price">NT$39,783</div>
+            <div class="ccard-change rise">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+              +5%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$37,720</s> · +NT$2,063</div>
+          </div>
+
+          <!-- Card 3: 大幅降價 -->
+          <div class="ccard" tabindex="0" role="listitem" aria-label="02/13 出發，最低價 NT$22,400，較上次降 44%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              02/13 出發 → 02/21 回程
+            </div>
+            <div class="ccard-price">NT$22,400</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -44%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$39,783</s> · -NT$17,383</div>
+          </div>
+
+          <!-- Card 4: 降價 -->
+          <div class="ccard" tabindex="0" role="listitem" aria-label="02/20 出發，最低價 NT$19,800，較上次降 12%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              02/20 出發 → 02/28 回程
+            </div>
+            <div class="ccard-price">NT$19,800</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -12%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$22,400</s> · -NT$2,600</div>
+          </div>
+
+          <!-- Card 5: 降價 -->
+          <div class="ccard" tabindex="0" role="listitem" aria-label="02/27 出發，最低價 NT$18,500，較上次降 7%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              02/27 出發 → 03/07 回程
+            </div>
+            <div class="ccard-price">NT$18,500</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -7%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$19,800</s> · -NT$1,300</div>
+          </div>
+
+          <!-- Card 6: 降價 -->
+          <div class="ccard" tabindex="0" role="listitem" aria-label="03/06 出發，最低價 NT$17,200，較上次降 7%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              03/06 出發 → 03/14 回程
+            </div>
+            <div class="ccard-price">NT$17,200</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -7%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$18,500</s> · -NT$1,300</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 重點調整 Legend -->
+    <div class="legend">
+      <div class="anno"><span class="num">1</span><span><b>一卡一週</b>：每張卡片代表一週的變動，mobile 自然堆疊不需橫向捲動</span></div>
+      <div class="anno"><span class="num">2</span><span><b>漲跌 pill badge</b>：success/danger 色背景 + 箭頭 SVG，一眼辨識方向與幅度</span></div>
+      <div class="anno"><span class="num">3</span><span><b>價格層級</b>：當前價 bold 1.05rem → 上次價 muted 0.72rem + 刪除線，形成「從→到」動線</span></div>
+      <div class="anno"><span class="num">4</span><span><b>Grid 響應式</b>：3 欄 → 2 欄 → 1 欄，無需橫向捲動</span></div>
+      <div class="anno"><span class="num">5</span><span><b>Hover 互動</b>：卡片陰影加深 + 微上移（translateY -1px），提供回饋</span></div>
+      <div class="anno"><span class="num">6</span><span><b>無障礙</b>：每張卡片 aria-label 含完整變動資訊，tabindex=0 可鍵盤聚焦</span></div>
+    </div>
+
+    <!-- 元件解剖 -->
+    <div class="anatomy">
+      <div class="anat-card">
+        <h4>變動卡片 <span class="tag">.ccard</span></h4>
+        <div class="anat-stage">
+          <div style="max-width: 280px;">
+            <div class="ccard" tabindex="0" style="margin: 0;">
+              <div class="ccard-date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="width:12px;height:12px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                02/13 出發 → 02/21 回程
+              </div>
+              <div class="ccard-price">NT$22,400</div>
+              <div class="ccard-change drop">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                -44%
+              </div>
+              <div class="ccard-prev">上次 <s>NT$39,783</s> · -NT$17,383</div>
+            </div>
+          </div>
+        </div>
+        <div class="anat-dims">
+          padding <b>12px 16px</b> · 圓角 <b>10px</b> · border <b>1px solid var(--border)</b><br>
+          價格字級 <b>1.05rem</b> bold mono · 日期 <b>0.72rem</b> muted<br>
+          badge 圓角 <b>20px</b>（pill）· hover translate <b>-1px</b>
+        </div>
+      </div>
+      <div class="anat-card">
+        <h4>漲跌 Badge <span class="tag">.ccard-change</span></h4>
+        <div class="anat-stage">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -44%
+            </div>
+            <div class="ccard-change rise">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+              +7%
+            </div>
+            <div class="ccard-change flat">— 0%</div>
+          </div>
+        </div>
+        <div class="anat-dims">
+          三態：<b>.drop</b>（success 色）/ <b>.rise</b>（danger 色）/ <b>.flat</b>（muted）<br>
+          背景 <b>success-light / danger-light / surface-2</b><br>
+          SVG 箭頭 <b>14px</b>，aria-hidden
+        </div>
+      </div>
+    </div>
+
+    <!-- 狀態矩陣 -->
+    <table class="states">
+      <tr><th style="width:140px;">狀態</th><th>視覺</th><th>互動</th></tr>
+      <tr>
+        <td>降價</td>
+        <td>success 色 pill badge + ↓ 箭頭 + 百分比</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>漲價</td>
+        <td>danger 色 pill badge + ↑ 箭頭 + 百分比</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>持平</td>
+        <td>muted 色 badge + — + 0%</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Hover</td>
+        <td>卡片陰影加深 + translateY(-1px)</td>
+        <td>視覺回饋</td>
+      </tr>
+      <tr>
+        <td>Focus（鍵盤）</td>
+        <td>3px accent outline ring</td>
+        <td>Tab 可聚焦</td>
+      </tr>
+      <tr>
+        <td>空結果</td>
+        <td>整區隱藏（hidden）</td>
+        <td>—</td>
+      </tr>
+    </table>
+
+    <div class="note"><b>無障礙：</b>WCAG 1.4.1（漲跌有文字箭頭不單靠顏色）、2.4.7（focus ring）、2.5.5（卡片最小高度 ≥44px）、4.1.2（role=listitem + aria-label 含完整變動資訊）。</div>
+  </div>
+
+  <!-- ══════════ 3. Mobile ══════════ -->
+  <div class="frame mobile-frame">
+    <h2>3️⃣ Mobile</h2>
+    <p class="fsub">Mobile 1 欄堆疊，卡片全寬，不需橫向捲動。</p>
+
+    <div class="browser-bar">
+      <span class="bdot"></span><span class="bdot"></span><span class="bdot"></span>
+      <span class="browser-url">AirTicketsPrice — Mobile</span>
+      <span class="elem-count">1 欄</span>
+    </div>
+
+    <div class="app-page is-mobile" style="padding: 0;">
+      <div style="padding: 0.75rem 1rem;">
+        <span class="badge-after">AFTER — Mobile 卡片</span>
+      </div>
+      <div class="change-cards-wrap" style="margin: 0; border-radius: 0; border-left: none; border-right: none; border-bottom: none;">
+        <div class="change-cards-title">每週票價變動（與上次抓取比較）</div>
+        <div class="change-cards" style="grid-template-columns: 1fr;">
+          <div class="ccard" tabindex="0" role="listitem" aria-label="02/13 出發，最低價 NT$22,400，較上次降 44%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              02/13 出發 → 02/21 回程
+            </div>
+            <div class="ccard-price">NT$22,400</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -44%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$39,783</s> · -NT$17,383</div>
+          </div>
+          <div class="ccard" tabindex="0" role="listitem" aria-label="02/20 出發，最低價 NT$19,800，較上次降 12%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              02/20 出發 → 02/28 回程
+            </div>
+            <div class="ccard-price">NT$19,800</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -12%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$22,400</s> · -NT$2,600</div>
+          </div>
+          <div class="ccard" tabindex="0" role="listitem" aria-label="02/27 出發，最低價 NT$18,500，較上次降 7%">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              02/27 出發 → 03/07 回程
+            </div>
+            <div class="ccard-price">NT$18,500</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -7%
+            </div>
+            <div class="ccard-prev">上次 <s>NT$19,800</s> · -NT$1,300</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="note"><b>Mobile 規範：</b>觸控目標 ≥44px（WCAG 2.5.5）· 1 欄堆疊不需橫向捲動 · 卡片全寬。</p>
+  </div>
+
+  <!-- ══════════ 4. 規格摘要 ══════════ -->
+  <div class="frame">
+    <h2>4️⃣ 規格摘要 — CSS 變數對應</h2>
+    <p class="fsub">實作時直接套用下列變數與結構。</p>
+    <table class="states">
+      <tr><th style="width:220px;">項目</th><th>值</th><th>對應</th></tr>
+      <tr><td>容器</td><td>display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;</td><td><code>.change-cards</code></td></tr>
+      <tr><td>卡片背景</td><td>var(--surface)</td><td><code>--surface</code></td></tr>
+      <tr><td>卡片邊框</td><td>1px solid var(--border)</td><td><code>--border</code></td></tr>
+      <tr><td>卡片圓角</td><td>10px</td><td><code>--radius</code></td></tr>
+      <tr><td>卡片 padding</td><td>12px 16px</td><td>—</td></tr>
+      <tr><td>價格字級</td><td>1.05rem, bold, mono</td><td>—</td></tr>
+      <tr><td>降價 badge</td><td>color: var(--success); background: var(--success-light)</td><td><code>--success</code> / <code>--success-light</code></td></tr>
+      <tr><td>漲價 badge</td><td>color: var(--danger); background: var(--danger-light)</td><td><code>--danger</code> / <code>--danger-light</code></td></tr>
+      <tr><td>持平 badge</td><td>color: var(--muted); background: var(--surface-2)</td><td><code>--muted</code> / <code>--surface-2</code></td></tr>
+      <tr><td>Hover 動畫</td><td>box-shadow + translateY(-1px), 0.2s ease</td><td><code>--transition</code></td></tr>
+      <tr><td>Focus ring</td><td>outline: 3px solid var(--accent-light)</td><td><code>--accent-light</code></td></tr>
+      <tr><td>RWD 斷點</td><td>≥1024: 3col · 768–1023: 2col · ≤767: 1col</td><td>media query</td></tr>
+    </table>
+  </div>
+
+  <div class="footnote">
+    📄 設計文件：<b>docs/uiux/002-change-table-redesign.md</b> ・ 本文件：<b>docs/uiux/002-change-table-redesign-mockup.html</b><br>
+    實作範圍：<b>web/app.js renderChangeTable → renderChangeCards</b> + <b>web/styles.css 新增 .ccard 系列</b><br>
+    移除：<b>.ct-table 相關 CSS</b>（或保留為 fallback）
+  </div>
+</div>
+
+<script>
+// ── 主題切換 ──
+const themeBtn = document.getElementById('themeToggle');
+themeBtn.addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  themeBtn.textContent = dark ? '🌙 切換深色' : '☀️ 切換淺色';
+});
+
+// ── 裝置切換 ──
+const devSwitch = document.getElementById('devSwitch');
+devSwitch.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  devSwitch.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.body.classList.toggle('view-mobile', b.dataset.dev === 'mobile');
+}));
+</script>
+</body>
+</html>

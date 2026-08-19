@@ -808,7 +808,7 @@
     chart.setAttribute('aria-label', '票價趨勢圖：' + routeInfo.name + ' ' + state.route + '，' + flightLabel + '，' + rangeLabel());
 
     renderSummary(visible, avg, state.route);
-    renderChangeTable(visible);
+    renderChangeCards(visible);
   }
 
   // ═══════════════ Tooltip（§2.7） ═══════════════
@@ -864,7 +864,12 @@
   function hideTip() { tip.classList.remove('show'); }
 
   // ═══════════════ 每週漲跌表（scrape-vs-scrape 變動）═══════════════
-  function renderChangeTable(visible) {
+  // SVG 箭頭圖示（aria-hidden，跨平台一致）
+  const SVG_ARROW_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>';
+  const SVG_ARROW_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+  const SVG_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+
+  function renderChangeCards(visible) {
     // 只顯示有變動資料的週（minChangePct !== null）
     const rows = visible.filter(w =>
       w.min !== null && w.minChangePct !== null && w.minChangePct !== undefined
@@ -874,25 +879,25 @@
       return;
     }
     changeTableWrap.hidden = false;
-    let html = '<table class="ct-table"><thead><tr>' +
-      '<th>出發週</th><th>回程週</th><th>最低價</th><th>上次價格</th><th>漲跌</th><th>幅度</th>' +
-      '</tr></thead><tbody>';
+    let html = '';
     for (const w of rows) {
       const isDrop = w.minChangePct < 0;
       const isRise = w.minChangePct > 0;
       const cls = isDrop ? 'drop' : (isRise ? 'rise' : 'flat');
-      const arrow = isDrop ? '↓' : (isRise ? '↑' : '—');
+      const arrow = isDrop ? SVG_ARROW_DOWN : (isRise ? SVG_ARROW_UP : '—');
       const sign = w.minChangePct > 0 ? '+' : '';
-      html += '<tr>' +
-        '<td class="ct-date">' + esc(fmtD(w.d)) + '</td>' +
-        '<td class="ct-date">' + esc(fmtD(w.r)) + '</td>' +
-        '<td class="ct-price">' + fmt(w.min) + '</td>' +
-        '<td class="ct-price">' + fmt(w.minPrev) + '</td>' +
-        '<td class="ct-change ' + cls + '">' + arrow + ' ' + sign + w.minChangePct + '%</td>' +
-        '<td class="ct-change ' + cls + '">' + (w.minChange >= 0 ? '+' : '') + fmt(Math.abs(w.minChange)) + '</td>' +
-        '</tr>';
+      const absChange = (w.minChange >= 0 ? '+' : '') + fmt(Math.abs(w.minChange));
+      const ariaLabel = esc(fmtD(w.d)) + ' 出發，最低價 ' + fmt(w.min) +
+        (w.minChangePct !== 0 ? '，較上次' + (isDrop ? '降' : '漲') + ' ' + Math.abs(w.minChangePct) + '%' : '')
+        + '，上次 ' + fmt(w.minPrev);
+      html += '<div class="ccard" role="listitem" tabindex="0" aria-label="' + ariaLabel + '">' +
+        '<div class="ccard-date">' + SVG_CAL +
+        ' ' + esc(fmtD(w.d)) + ' 出發 → ' + esc(fmtD(w.r)) + ' 回程</div>' +
+        '<div class="ccard-price">' + fmt(w.min) + '</div>' +
+        '<div class="ccard-change ' + cls + '">' + arrow + ' ' + sign + w.minChangePct + '%</div>' +
+        '<div class="ccard-prev">上次 <s>' + fmt(w.minPrev) + '</s> · ' + absChange + '</div>' +
+        '</div>';
     }
-    html += '</tbody></table>';
     changeTableEl.innerHTML = html;
   }
 
