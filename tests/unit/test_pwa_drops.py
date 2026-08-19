@@ -409,6 +409,7 @@ class TestMainNotifyFlow(unittest.TestCase):
     def test_main_notify_success_writes_marker(self):
         """成功發送 → 寫 data/last_notified.json（{iso_week, notified_at}）→ 0。"""
         data_dir, _ = self._setup_data([26008], [24120])
+        now_iso = fetch_prices._iso_week(datetime.now(timezone.utc))
         with mock.patch.object(config, "OUTPUT_DIR", str(data_dir)), \
              mock.patch.object(fetch_prices, "call_notify",
                                return_value={"ok": True, "status": 200}) as call, \
@@ -418,14 +419,15 @@ class TestMainNotifyFlow(unittest.TestCase):
         self.assertEqual(code, 0)
         call.assert_called_once()
         marker = json.loads((data_dir / "last_notified.json").read_text(encoding="utf-8"))
-        self.assertEqual(marker["iso_week"], "2026-W33")
+        self.assertEqual(marker["iso_week"], now_iso)
         self.assertIn("notified_at", marker)
 
     def test_main_notify_same_week_second_trigger_blocked(self):
         """SYS-15：同週二次觸發 → 不呼叫 /notify、不覆寫 marker。"""
         data_dir, _ = self._setup_data([26008], [24120])
+        now_iso = fetch_prices._iso_week(datetime.now(timezone.utc))
         write_json(data_dir / "last_notified.json",
-                   {"iso_week": "2026-W33", "notified_at": "2026-08-14T01:00:00.000Z"})
+                   {"iso_week": now_iso, "notified_at": "2026-08-14T01:00:00.000Z"})
         with mock.patch.object(config, "OUTPUT_DIR", str(data_dir)), \
              mock.patch.object(fetch_prices, "call_notify") as call, \
              mock.patch.dict(os.environ, {"PUSH_API_TOKEN": "t", "PUSH_NOTIFY_URL": "https://w/n"}):
