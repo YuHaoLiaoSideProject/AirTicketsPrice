@@ -1,2 +1,2 @@
 requests>=2.31
-lunardate>=2.7
+lunardate>=0.2
