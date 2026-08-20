@@ -168,13 +168,16 @@ fetch_prices.py --notify（偵測下降 → Cloudflare Worker Web Push）
 
 資料每週自動更新，公開給任何程式抓取（CORS 全開、免認證）。
 
-### 進入點（三條路都可用）
+### 進入點
 
-| 路徑 | 網址 | 適合 |
+| 路徑 | 網址 | 說明 |
 |------|------|------|
-| GitHub Pages | `https://yuhaoliaosideproject.github.io/AirTicketsPrice/api/index.json` | 正式使用 |
-| raw | `https://raw.githubusercontent.com/YuHaoLiaoSideProject/AirTicketsPrice/main/api/index.json` | 開發測試 |
-| jsDelivr CDN | `https://cdn.jsdelivr.net/gh/YuHaoLiaoSideProject/AirTicketsPrice@main/api/index.json` | 全球加速 |
+| GitHub Pages | `https://yuhaoliaosideproject.github.io/AirTicketsPrice/api/index.json` | 正式使用（API 檔由 CI 建產後部署，不進 repo） |
+
+> `api/` 目錄在 `.gitignore` 中（CI 建產物），因此 `raw.githubusercontent.com` 與 `cdn.jsdelivr.net` 無法存取。如需直接存取原始資料，可用 `data/*.json`（已 commit 進 repo）：
+> ```
+> https://raw.githubusercontent.com/YuHaoLiaoSideProject/AirTicketsPrice/main/data/20260814.json
+> ```
 
 ### API 結構
 
