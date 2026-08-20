@@ -28,6 +28,8 @@
   const offBar = $('offBar');         // 離線橫幅（T4 / §2.3.1）
   const refreshBtn = $('refreshBtn'); // 手動更新按鈕（T5 / §2.3.1）
   const syncStatus = $('syncStatus'); // 更新時間旁的同步狀態文字（已是最新 / 更新失敗…，§2.3.1）
+  const updateBar = $('updateBar');   // PWA 更新橫幅（新版本可用）
+  const updateBtn = $('updateBtn');   // PWA 更新按鈕
   const installBtn = $('installBtn'); // PWA 安裝按鈕（T4 / §2.5 ①；初始 hidden）
   const iosHint = $('iosHint');       // iOS「加到主畫面」提示（T4 / §2.5 ②；初始 hidden）
   const changeTableWrap = $('changeTableWrap'); // 每週漲跌表容器
@@ -414,6 +416,58 @@
     await incrementalSync({ force: true });
   }
   refreshBtn.addEventListener('click', manualUpdate);
+
+  // ═══ PWA 自動更新偵測（§7：新版本可用時顯示橫幅，用戶點擊立即更新）═══
+  // sw.js 已有 skipWaiting() + clients.claim()，新版 SW 安裝後會自動啟動；
+  // 此處偵測 waiting 狀態，顯示橫幅讓用戶手動觸發 reload（或自動套用）。
+  let _newWorker = null;  // 暫存新版 SW（waiting 狀態）
+  let _updateListenersAttached = false;  // 防重複綁定（init 重跑不疊加 listener）
+  function initUpdateDetection() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready.then(reg => {
+      // 監聽 waiting worker（新版已下載，等用戶確認或舊 tab 關閉）
+      function checkWaiting() {
+        if (reg.waiting) {
+          _newWorker = reg.waiting;
+          updateBar.hidden = false;   // 顯示更新橫幅
+        }
+      }
+      // 初次檢查（可能已有 waiting）
+      checkWaiting();
+      if (_updateListenersAttached) return;  // 已綁過 → 跳過（避免 retry 重複綁定）
+      _updateListenersAttached = true;
+      // 監聽 updatefound（新版 SW 開始安裝）
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // 新版已安裝且目前有 controller → 表示有更新
+            _newWorker = newSW;
+            updateBar.hidden = false;
+          }
+        });
+      });
+      // 監聽 controllerchange（新版 SW 已啟動）→ 自動刷新頁面
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // 新版 SW 已接管，重新載入以使用新版資源
+        if (document.visibilityState === 'visible') {
+          location.reload();
+        }
+      });
+    });
+  }
+  // 更新按鈕：觸發新版 SW 立即啟動
+  if (updateBtn) {
+    updateBtn.addEventListener('click', () => {
+      if (_newWorker) {
+        _newWorker.postMessage({ type: 'SKIP_WAITING' });  // 通知新版 SW 立即啟動
+        updateBar.hidden = true;  // 隱藏橫幅（controllerchange 會 reload）
+      }
+    });
+  }
+  // sw.js 接收 SKIP_WAITING message → 立即啟用新版 SW（§7 手動更新）
+  // install 階段不呼叫 skipWaiting()，新版 SW 進入 waiting 狀態，用戶點擊更新橫幅後才啟用。
 
   /** updText →「資料更新 YYYY-MM-DD · 每週五更新」（INDEX 為最新 index） */
   function setUpdTextFromIndex() {
@@ -1074,6 +1128,7 @@
     renderRangeSeg();
     initControls();
     initPwaPush();   // fire-and-forget：訂閱 UI 初始化不延後首繪（§2.6；不彈權限詢問，D5）
+    initUpdateDetection();  // PWA 更新偵測：新版本可用時顯示橫幅
 
     // 1. 來源檢查（E2）
     if (!originAllowed(location.origin)) {

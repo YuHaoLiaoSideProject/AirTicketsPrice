@@ -48,6 +48,28 @@ body {
 
 /* ── 航線 tab ── */
 .route-tabs { display: flex; gap: 0.35rem; border-bottom: 1px solid var(--border); }
+
+/* ═══ PWA 更新橫幅（§7：新版本可用）═══ */
+.update-bar {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  font-size: 0.82rem; color: var(--accent);
+  background: var(--accent-light); border: 1px solid rgba(26,115,232,0.35);
+  border-radius: 8px; padding: 0.55rem 0.85rem; margin: 0.55rem 0 0.15rem;
+  animation: slideDown 0.3s ease;
+}
+.update-bar .ico { width: 16px; height: 16px; color: var(--accent); flex-shrink: 0; }
+.update-bar span { flex: 1; }
+.update-bar .btn {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 20px; padding: 0.35rem 0.85rem;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  transition: background var(--transition);
+}
+.update-bar .btn:hover { background: var(--accent-hover); }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .rtab { display: inline-flex; align-items: center; gap: 0.45rem; height: var(--h); padding: 0 1.05rem; border: 1px solid transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: none; color: var(--muted); font-size: 0.875rem; cursor: pointer; font-weight: 500; transition: all var(--transition); position: relative; }  /* position:relative 為 E2 提示錨點 */
 .rtab:hover { color: var(--text); background: var(--surface-2); }
 .rtab:focus-visible { outline: 3px solid var(--accent-light); outline-offset: -2px; }

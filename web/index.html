@@ -17,6 +17,13 @@
 <body>
 <div class="page">
 
+  <!-- PWA 更新橫幅（新版本可用時顯示） -->
+  <div id="updateBar" class="update-bar" hidden>
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>
+    <span>有新版本可用！</span>
+    <button id="updateBtn" class="btn" type="button">立即更新</button>
+  </div>
+
   <!-- 離線橫幅（T4 / §2.5 ①）：頁首最上層；離線時顯示「離線模式 · 顯示上次資料（HH:MM）」 -->
   <div id="offBar" class="offbar" role="status" aria-live="polite" hidden>離線模式 · 顯示上次資料（--:--）</div>
 

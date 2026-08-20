@@ -17,9 +17,11 @@ const SHELL = [                               // 僅 app shell 檔（D1：不攔
   'sw.js',
 ];
 
-/* install：precache shell；任一個失敗 → 整體失敗（install 不完成，下次再試） */
+/* install：precache shell；任一個失敗 → 整體失敗（install 不完成，下次再試）
+ * 不呼叫 skipWaiting()：新版 SW 進入 waiting 狀態，由 app.js 更新橫幅通知用戶手動觸發（§7）。
+ */
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
 });
 
 /* activate：刪除非目前版本 cache（避免舊 shell 殘留） */
@@ -27,6 +29,13 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys =>
     Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
   ).then(() => self.clients.claim()));
+});
+
+/* message：接收 app.js 的 SKIP_WAITING 指令 → 立即啟用新版 SW（§7 手動更新）*/
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    e.waitUntil(self.skipWaiting());
+  }
 });
 
 /* fetch：只攔「同源 + 命中 shell 清單」的 GET →
