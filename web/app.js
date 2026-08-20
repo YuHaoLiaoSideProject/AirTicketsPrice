@@ -567,6 +567,15 @@
         merged.meta.indexTrips = json.trips;                                     // 離線 unit 清單快照同步更新
         CACHE.meta = merged.meta;
         CACHE.units = merged.units;
+        // 背景同步完成後，標記所有 index 中的航線為已載入
+        if (json && json.routes) {
+          for (const routeId of json.routes) {
+            CACHE.meta.routeLoadedAt = {
+              ...(CACHE.meta.routeLoadedAt || {}),
+              [routeId]: CACHE.meta.routeLoadedAt?.[routeId] || new Date().toISOString(),
+            };
+          }
+        }
         await persistCacheSafe();
         // 記憶體 routeCache 重建（只重算受影響航線；目前航線未變 → 不重繪，F-25）
         const affected = new Set(diff.removed);

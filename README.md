@@ -5,13 +5,12 @@
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#授權條款)
 
-每週自動抓取**星宇航空（STARLUX, JX）**指定航線的來回票價（去程週六 → 回程下週日），
-輸出 JSON 歷史檔案，搭配 PWA 趨勢圖儀表板與票價下降推播通知，讓你掌握最佳購票時機。
+每週自動抓取**星宇航空（STARLUX, JX）**指定航線的來回票價，搭配 PWA 趨勢圖儀表板與票價下降推播通知。
 
 ## 🎯 核心功能
 
 - **🔍 自動爬蟲**：每週五透過 GitHub Actions 自動抓取 7 條航線 40 週票價，免人工、免 API Key
-- **📊 趨勢圖儀表板**：純靜態 PWA 前端，每週最低價折線圖 + 全域平均 + 旺季區塊標記
+- **📊 趨勢圖儀表板**：純靜態 PWA 前端，每週最低價折線圖 + 整體平均 + 旺季區塊標記
 - **📴 離線瀏覽**：IndexedDB 快取 + Service Worker，離線也能查看上次載入的趨勢圖
 - **📱 PWA 安裝**：可安裝到手機主畫面，像 App 一樣使用（Android / iOS 16.4+）
 - **🔔 票價下降通知**：Web Push 推播，偵測到票價下降即時通知（Cloudflare Worker）
@@ -172,12 +171,9 @@ fetch_prices.py --notify（偵測下降 → Cloudflare Worker Web Push）
 
 | 路徑 | 網址 | 說明 |
 |------|------|------|
-| GitHub Pages | `https://yuhaoliaosideproject.github.io/AirTicketsPrice/api/index.json` | 正式使用（API 檔由 CI 建產後部署，不進 repo） |
+| GitHub Pages | `https://yuhaoliaosideproject.github.io/AirTicketsPrice/api/index.json` | 正式使用 |
 
-> `api/` 目錄在 `.gitignore` 中（CI 建產物），因此 `raw.githubusercontent.com` 與 `cdn.jsdelivr.net` 無法存取。如需直接存取原始資料，可用 `data/*.json`（已 commit 進 repo）：
-> ```
-> https://raw.githubusercontent.com/YuHaoLiaoSideProject/AirTicketsPrice/main/data/20260814.json
-> ```
+> `api/` 為 CI 產物不進 repo，如需原始資料可用 `data/*.json`（已 commit）。
 
 ### API 結構
 
@@ -190,13 +186,11 @@ api/
         └── 2026-08-22_2026-08-30.json
 ```
 
-### 消費端建議流程（轉存 DB）
+### 消費端建議流程
 
-1. `GET api/index.json` → 看有哪些檔案
-2. 依序抓 `data/*.json`（每週原始檔）→ **upsert 進 DB**
-   （key = `route_id + outbound_date + return_date + outbound_flight_no`，
-   同 key 保留 `scraped_at` 最新者）
-3. 畫趨勢圖 → 直接抓 `api/trips/*.json`（每航班一條價格歷史序列）
+1. `GET api/index.json` 取得檔案清單
+2. 依序抓 `data/*.json` upsert 進 DB（key = `route_id + outbound_date + return_date + outbound_flight_no`，同 key 保留 `scraped_at` 最新者）
+3. 畫趨勢圖直接抓 `api/trips/*.json`（每航班一條價格歷史序列）
 
 ### trips 檔範例
 
@@ -249,46 +243,27 @@ api/
 - 航線切換（東京／大阪／福岡／札幌／名古屋／釜山／胡志明）、航班切換、hover tooltip
 - Summary 三卡（最便宜出發週／全域平均／旺季提醒）
 
-### 本機開發
 
-```bash
-# 起本機伺服器（repo 根目錄，模擬 Pages）
-python -m http.server 8000
-# 瀏覽器開啟 http://localhost:8000/web/
-```
-
-> 前端純消費既有靜態 API（`api/index.json` / `api/trips/*.json`），不需登入；新增航線只需更新 `config.py` 並等爬蟲產出資料，前端 `web/aggregate.js` 的 `CONFIG.ROUTES` 同步加上即可。
 
 ## 📴 離線功能
 
-純前端「快取優先 + 增量更新」：再次開啟頁面秒開；有網路時只補載變更資料，沒網路時直接瀏覽上次載入的快取（含離線開頁）。
+純前端「快取優先 + 增量更新」：再次開啟頁面即刻載入；有網路時只補載變更資料，沒網路時直接瀏覽上次載入的快取。
 
-- **快取優先 + 增量更新**：開啟時先以 IndexedDB 快取秒繪圖表，再於背景比對 `generated_at`——相同 →「已是最新」（0 個 trip 請求）；伺服器較新 → 以 ETag 條件式請求（`If-None-Match`）只補載變更的 trip 檔（304 零 body）；伺服器較舊 →「資料可能過時」警示（不覆寫本地新資料）
-- **離線瀏覽**：Service Worker 快取 app shell（7 檔：index.html / styles.css / app.js / aggregate.js / cache.js / pwa.js / sw.js）→ 離線也能開啟頁面；資料存 IndexedDB → 離線顯示上次載入的趨勢圖（航班切換 / 日期篩選 / hover / Summary 三卡皆可用），頁首顯示離線橫幅「離線模式 · 顯示上次資料（HH:MM）」
-- **手動更新**：連網時可點「手動更新」強制重新驗證（重新抓 index + 跑完整增量同步）；離線時按鈕停用顯示「離線中，無法更新」
-- **限制**：首次訪問需連網（載入一次後才有快取）；離線僅限「上次載入過」的航線，未載入航線顯示「此航線尚未下載，需連網」並停留原航線；快取以瀏覽器為單位——無痕視窗／另一瀏覽器等同首次訪問
+- **快取優先 + 增量更新**：開啟時先以 IndexedDB 快取繪製圖表，再於背景比對 `generated_at`——相同 → 不發出請求；伺服器較新 → 以 ETag 條件式請求（`If-None-Match`）只補載變更的 trip 檔（304 回應無 body）；伺服器較舊 → 顯示「資料可能過時」警示，不覆寫本地新資料
+- **離線瀏覽**：Service Worker 快取 app shell（7 檔）→ 離線也能開啟頁面；資料存 IndexedDB → 離線顯示上次載入的趨勢圖（航班切換 / 日期篩選 / hover / Summary 三卡皆可用），頁首顯示離線橫幅「離線模式 · 顯示上次資料（HH:MM）」
+- **手動更新**：連網時可點「手動更新」強制重新驗證；離線時按鈕停用顯示「離線中，無法更新」
+- **限制**：首次訪問需連網；離線僅限上次載入過的航線，未載入航線顯示「此航線尚未下載，需連網」；快取以瀏覽器為單位，無痕視窗等同首次訪問
 
 ## 📱 安裝為 App（PWA）
 
 純靜態頁面可安裝成主畫面 App，對應行為：
 
-### Android Chrome（或桌面 Chrome / Edge）
-
-1. 開啟 `https://yuhaoliaosideproject.github.io/AirTicketsPrice/web/`
-2. 瀏覽器具備安裝資格時，頁首會出現「**安裝 App**」按鈕
-3. 點「安裝 App」→ 原生安裝確認框 → 接受後主畫面出現「票價趨勢」圖示
-
-### iOS Safari
-
-1. 點分享按鈕（底部工具列中間的分享圖示）
-2. 往下捲選「**加到主畫面**」
-3. 確認名稱「票價趨勢」→ 加入 → 主畫面出現圖示
-
-> iOS 需 **16.4+** 才支援 Web Push 通知；直接在 Safari 瀏覽器內開啟不會收到通知。
+- **Android / 桌面 Chrome**：頁首出現「安裝 App」按鈕，點擊後確認安裝即可
+- **iOS Safari**：點分享按鈕 → 「加到主畫面」（需 16.4+ 才支援 Web Push）
 
 ## 🔔 票價下降通知
 
-每週五爬蟲完成並 commit 後，若任一航班票價較**上次抓取**下降（`drop_last`），系統會以 Web Push 主動推播**單則摘要通知**（最多 3 條、取下降幅度最大者）；點通知直接跳到該航線。
+每週五爬蟲完成後，若任一航班票價較上次下降，系統以 Web Push 推播通知（最多 3 條，取下降幅度最大者），點擊直接跳到該航線。
 
 ### 運作流程
 
@@ -301,15 +276,9 @@ Cloudflare Worker /notify（驗證 token → VAPID Web Push 廣播）
 瀏覽器／裝置推播通知（點擊 → 開啟頁面並跳到該航線）
 ```
 
-### 部署 Worker（一次性）
+### 部署 Worker
 
-依 `worker/README.md`「部署步驟」完成：
-
-1. `wrangler kv namespace create SUBSCRIPTIONS` → binding id 填入 `worker/wrangler.toml`
-2. `node worker/spike/gen-vapid-keys.mjs` 產生 VAPID 金鑰對
-3. `wrangler secret put VAPID_PRIVATE_KEY`
-4. `wrangler secret put PUSH_API_TOKEN`（與 GitHub repo secret **同值**）
-5. `wrangler deploy` → 取得 `https://airtickets-price-push.<account>.workers.dev`
+依 `worker/README.md` 完成一次性部署。
 
 ## 🧪 測試
 
@@ -341,11 +310,7 @@ python tests/e2e_pwa.py
 
 ## 📈 之後可擴充
 
-- [x] 趨勢圖視覺化（把 data/*.json 畫成折線圖）
-- [x] PWA 可安裝（manifest + 圖示 + 安裝按鈕 + iOS「加到主畫面」提示 + standalone）
-- [x] 票價下降推播通知（Cloudflare Worker 自建 Web Push）
-- [x] 農曆過年旺季自動計算（holidays.py，lunardate 曆法推算）
-- [x] 擴充航線至 7 條（名古屋、釜山、胡志明）
+
 - [ ] 同一趟旅程的歷史走勢（需資料累積數週後）
 - [ ] 商務艙追蹤
 - [ ] 多航線並排比較
