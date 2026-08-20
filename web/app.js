@@ -658,7 +658,7 @@
   // ═══════════════ 圖表層（§2.6，移植 mockup） ═══════════════
   const NS = 'http://www.w3.org/2000/svg';
   const { W, H, M } = CONFIG.SVG;
-  const { MIN: YMIN, MAX: YMAX } = CONFIG.Y;
+  // YMIN / YMAX 改為 buildChart 內從資料動態計算（不再使用固定值）
   const fmt = n => 'NT$' + n.toLocaleString('en-US');
   const fmtD = d => d ? d.split('-').slice(1).join('/') : '—';
   // HTML 跳脫（API 資料進入 innerHTML 前必經，防 XSS）
@@ -694,14 +694,28 @@
     const n = visible.length;
     if (n === 0) return; // 可見範圍無資料（防呆）
     const X = i => M.l + i * (W - M.l - M.r) / Math.max(n - 1, 1); // 單週資料時避免除以零（NaN）
-    const Y = v => H - M.b - (v - YMIN) / (YMAX - YMIN) * (H - M.t - M.b);
+
+    // ── 動態 Y 軸：從可見資料計算 ──
+    const prices = visible.map(w => w.min).filter(v => v != null);
+    const dataMin = Math.min(...prices);
+    const dataMax = Math.max(...prices);
+    const PAD = 1000; // 上下各留 1K 空間
+    const YMIN = Math.max(0, Math.floor((dataMin - PAD) / 1000) * 1000);
+    const YMAX = Math.ceil((dataMax + PAD) / 1000) * 1000;
+    // 確保至少 6K 範圍（避免只有一格網格）
+    const yMin = Math.min(YMIN, YMAX - 6000);
+    const yMax = Math.max(YMAX, YMIN + 6000);
+
+    const Y = v => H - M.b - (v - yMin) / (yMax - yMin) * (H - M.t - M.b);
     const Yclamp = v => Math.max(Y(v), M.t); // E21：出界點 clamp 至圖表上緣
 
     chart.innerHTML = '';
     const routeInfo = CONFIG.ROUTES.find(r => r.id === state.route) || { name: state.route };
 
-    // Y 軸網格 + 標籤
-    for (let v = YMIN; v <= YMAX; v += 6000) {
+    // Y 軸網格 + 標籤（動態間距：依範圍自動選 2K/3K/4K/5K/6K）
+    const range = yMax - yMin;
+    const step = range <= 12000 ? 2000 : range <= 18000 ? 3000 : range <= 24000 ? 4000 : range <= 36000 ? 5000 : 6000;
+    for (let v = yMin; v <= yMax; v += step) {
       chart.appendChild(svgEl('line', { x1: M.l, y1: Y(v), x2: W - M.r, y2: Y(v), 'class': 'grid-major' }));
       const t = svgEl('text', { x: M.l - 8, y: Y(v) + 4, 'class': 'tick-label', 'text-anchor': 'end' });
       t.textContent = (v / 1000) + 'K';
@@ -761,7 +775,7 @@
     pts.forEach(p => {
       if (p.y === null) {
         // 缺資料/售罄週：平均線高度畫空心虛線圈（gap-dot）
-        chart.appendChild(svgEl('circle', { cx: p.x, cy: Y(avg ?? YMIN), r: 4, 'class': 'gap-dot', 'data-i': p.i }));
+        chart.appendChild(svgEl('circle', { cx: p.x, cy: Y(avg ?? yMin), r: 4, 'class': 'gap-dot', 'data-i': p.i }));
         if (p.w.status === 'sold_out') {
           const t = svgEl('text', { x: p.x, y: H - M.b + 30, 'class': 'sold-out-label', 'text-anchor': 'middle' });
           t.textContent = '售罄';

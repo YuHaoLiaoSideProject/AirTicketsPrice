@@ -43,7 +43,7 @@
       { label: '櫻花季',   from: '2027-03-27', to: '2027-04-03', routes: ['TPE-NRT', 'TPE-KIX', 'TPE-FUK'] }, // 本州
       { label: '櫻花季',   from: '2027-04-24', to: '2027-05-01', routes: ['TPE-CTS'] }, // 北海道（札幌）
     ],
-    Y: { MIN: 12000, MAX: 42000 },   // 四航線統一 Y 軸，可比性一致
+    Y: {},                            // Y 軸改為從資料動態計算（app.js buildChart）
     SVG: { W: 900, H: 330, M: { l: 60, r: 14, t: 22, b: 36 } },
     STALE_DAYS: 14,                  // generated_at 超過 14 天 → 過舊警示
     CONCURRENCY: 8,                  // trips 並行 fetch 上限
