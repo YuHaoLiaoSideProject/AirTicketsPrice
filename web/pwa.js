@@ -29,7 +29,7 @@
   const CONFIG = {
     PUSH_WORKER_URL: 'https://airtickets-price-push.h770320.workers.dev',  // §9.1 部署後改為實際 workers.dev 網域
     MAX_NOTIFY_DROPS: 3,                       // D4：摘要最多 3 條（與爬蟲 / Worker 一致）
-    ROUTE_NAMES: { 'TPE-NRT': '東京', 'TPE-KIX': '大阪', 'TPE-FUK': '福岡', 'TPE-CTS': '札幌' },
+    ROUTE_NAMES: { 'TPE-NRT': '東京', 'TPE-KIX': '大阪', 'TPE-FUK': '福岡', 'TPE-CTS': '札幌', 'TPE-NGO': '名古屋', 'TPE-PUS': '釜山', 'TPE-SGN': '胡志明' },
     IOS_SUPPORT_VERSION: [16, 4],              // iOS 16.4+ installed PWA 才收得到推播（D5/D7/S3）
     THEME_COLOR: '#1a73e8',                    // 與 manifest / styles.css --accent token 一致（F-16f）
     MANIFEST_PATH: 'manifest.webmanifest',     // 相對 index.html 路徑（GitHub Pages 子路徑自動解析，S2）

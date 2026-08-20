@@ -26,6 +26,9 @@
       { id: 'TPE-KIX', name: '大阪' },
       { id: 'TPE-FUK', name: '福岡' },
       { id: 'TPE-CTS', name: '札幌' },
+      { id: 'TPE-NGO', name: '名古屋' },
+      { id: 'TPE-PUS', name: '釜山' },
+      { id: 'TPE-SGN', name: '胡志明' },
     ],
     // 日期範圍：僅保留「全部」，不限制週數
     RANGES: [
