@@ -27,10 +27,18 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare deployment folder
+        run: |
+          mkdir -p _site/api
+          cp -r web/* _site/
+          cp api/index.json _site/api/
+          cp api/latest.json _site/api/
+          cp -r api/trips _site/api/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'web'
+          path: '_site'
 
       - name: Deploy to GitHub Pages
         id: deployment
