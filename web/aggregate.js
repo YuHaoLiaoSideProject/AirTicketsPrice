@@ -51,6 +51,7 @@
     // 允許的頁面來源（file:// 或 localhost 供開發；Pages 網域為正式）
     ORIGIN_ALLOWLIST: [
       'https://yuhaoliaosideproject.github.io',
+      'https://gh.mdevs.uk',
     ],
   };
 
