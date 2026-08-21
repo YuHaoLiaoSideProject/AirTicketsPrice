@@ -24,16 +24,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install holidays
+
+      - name: Build API from data
+        run: python build_api.py
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Prepare deployment folder
         run: |
-          mkdir -p _site/api
+          mkdir -p _site
           cp -r web/* _site/
-          cp api/index.json _site/api/
-          cp api/latest.json _site/api/
-          cp -r api/trips _site/api/
+          cp -r api _site/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
