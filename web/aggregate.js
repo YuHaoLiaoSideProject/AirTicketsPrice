@@ -29,6 +29,7 @@
       { id: 'TPE-NGO', name: '名古屋' },
       { id: 'TPE-PUS', name: '釜山' },
       { id: 'TPE-SGN', name: '胡志明' },
+      { id: 'TPE-BKK', name: '曼谷' },
     ],
     // 日期範圍：僅保留「全部」，不限制週數
     RANGES: [
