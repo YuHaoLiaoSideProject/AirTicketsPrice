@@ -83,6 +83,8 @@ jobs:
             echo "無變更，跳過 commit"
           else
             git commit -m "chore: 更新機票價格 $(date -u +%Y-%m-%dT%H:%MZ)"
+            # 先 pull rebase 避免 race condition
+            git pull --rebase origin main
             git push
           fi
 
