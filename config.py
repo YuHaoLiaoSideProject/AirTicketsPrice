@@ -7,15 +7,22 @@
 
 # 要追蹤的航線（星宇航空 ST JX）
 # 可用航線：TPE-NRT 東京 / TPE-KIX 大阪 / TPE-FUK 福岡 / TPE-CTS 札幌 ...
-ROUTES = [
+ROUTES_JP = [
     {"route_id": "TPE-NRT", "origin": "TPE", "destination": "NRT"},  # 東京成田
     {"route_id": "TPE-KIX", "origin": "TPE", "destination": "KIX"},  # 大阪關西
     {"route_id": "TPE-FUK", "origin": "TPE", "destination": "FUK"},  # 福岡
     {"route_id": "TPE-CTS", "origin": "TPE", "destination": "CTS"},  # 札幌新千歲
     {"route_id": "TPE-NGO", "origin": "TPE", "destination": "NGO"},  # 名古屋中部
+]
+
+ROUTES_OTHER = [
     {"route_id": "TPE-PUS", "origin": "TPE", "destination": "PUS"},  # 釜山
     {"route_id": "TPE-SGN", "origin": "TPE", "destination": "SGN"},  # 胡志明市
+    {"route_id": "TPE-BKK", "origin": "TPE", "destination": "BKK"},  # 曼谷素萬那普
 ]
+
+# 向後相容：全航線 = 日本 + 非日本
+ROUTES = ROUTES_JP + ROUTES_OTHER
 
 # 查詢未來幾週（去週六 → 下週日）
 NUM_WEEKS = 40

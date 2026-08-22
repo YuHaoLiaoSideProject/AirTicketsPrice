@@ -2,8 +2,10 @@ name: weekly-price-crawl
 
 on:
   schedule:
-    # 每週五 09:00 (UTC+8) = 01:00 UTC
-    - cron: "0 1 * * 5"
+    # 每週五 12:00 (UTC+8) = 04:00 UTC → 日本航線
+    - cron: "0 4 * * 5"
+    # 每週五 18:00 (UTC+8) = 10:00 UTC → 非日本航線
+    - cron: "0 10 * * 5"
   workflow_dispatch:
     inputs:
       crawl:
@@ -11,6 +13,15 @@ on:
         required: false
         default: false
         type: boolean
+      region:
+        description: '航線區域'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - jp
+          - other
 
 jobs:
   crawl:
@@ -31,6 +42,24 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: Determine region
+        id: region
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # 依 cron 時間判斷：週五 12:00(04:00 UTC)=日本，週五 18:00(10:00 UTC)=非日本
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" = "04" ]; then
+              echo "region=jp" >> $GITHUB_OUTPUT
+              echo "📅 排程觸發：週五 12:00 → 日本航線"
+            else
+              echo "region=other" >> $GITHUB_OUTPUT
+              echo "📅 排程觸發：週五 18:00 → 非日本航線"
+            fi
+          else
+            echo "region=${{ inputs.region || 'all' }}" >> $GITHUB_OUTPUT
+            echo "手動觸發：區域=${{ inputs.region || 'all' }}"
+          fi
+
       - name: Cron jitter（隨機延遲 0~30 分，避免固定整點模式）
         # 只有排程觸發才延遲；手動執行（workflow_dispatch）不需打亂節奏，立即開始
         if: github.event_name == 'schedule'
@@ -39,7 +68,7 @@ jobs:
       - name: Crawl prices
         # schedule 觸發時必定爬取；手動觸發時依 input 決定
         if: ${{ github.event_name == 'schedule' || inputs.crawl }}
-        run: python fetch_prices.py
+        run: python fetch_prices.py --region ${{ steps.region.outputs.region }}
 
       - name: Build static API
         run: python build_api.py

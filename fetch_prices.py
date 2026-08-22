@@ -478,6 +478,8 @@ def main() -> int:
                         help="爬蟲後執行票價下降通知（Phase 2；讀 data/ 比對 → 呼叫 Worker /notify）")
     parser.add_argument("--dry-run", action="store_true",
                         help="（搭配 --notify）不實際發送，只輸出將送出的 payload")
+    parser.add_argument("--region", choices=["jp", "other", "all"], default="all",
+                        help="只爬特定區域航線：jp=日本4條, other=非日本4條, all=全部8條")
     args = parser.parse_args()
 
     if args.notify:
@@ -500,9 +502,20 @@ def main() -> int:
     failed = 0
     total = 0
 
+    # 依 --region 選擇航線
+    if args.region == "jp":
+        routes = config.ROUTES_JP
+        print(f"🌏 區域：日本 (JP) - {len(routes)} 條航線")
+    elif args.region == "other":
+        routes = config.ROUTES_OTHER
+        print(f"🌏 區域：非日本 (OTHER) - {len(routes)} 條航線")
+    else:
+        routes = config.ROUTES
+        print(f"🌏 區域：全部 (ALL) - {len(routes)} 條航線")
+
     # 組出所有 (route, 日期) 查詢組合
     jobs = [(route, dep_date, ret_date)
-            for route in config.ROUTES
+            for route in routes
             for dep_date, ret_date in trips]
 
     for idx, (route, dep_date, ret_date) in enumerate(jobs):
