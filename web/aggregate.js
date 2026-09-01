@@ -26,6 +26,7 @@
       { id: 'TPE-KIX', name: '大阪' },
       { id: 'TPE-FUK', name: '福岡' },
       { id: 'TPE-CTS', name: '札幌' },
+      { id: 'TPE-OKA', name: '沖繩' },
       { id: 'TPE-NGO', name: '名古屋' },
       { id: 'TPE-PUS', name: '釜山' },
       { id: 'TPE-SGN', name: '胡志明' },
@@ -43,6 +44,7 @@
       { label: '農曆過年', from: '2027-01-30', to: '2027-02-06' }, // 40 週 idx 24–25
       { label: '櫻花季',   from: '2027-03-27', to: '2027-04-03', routes: ['TPE-NRT', 'TPE-KIX', 'TPE-FUK'] }, // 本州
       { label: '櫻花季',   from: '2027-04-24', to: '2027-05-01', routes: ['TPE-CTS'] }, // 北海道（札幌）
+      { label: '櫻花季',   from: '2027-01-20', to: '2027-02-05', routes: ['TPE-OKA'] }, // 沖繩（寒緋櫻，比本州早 2 個月）
     ],
     Y: {},                            // Y 軸改為從資料動態計算（app.js buildChart）
     SVG: { W: 900, H: 330, M: { l: 60, r: 14, t: 22, b: 36 } },

@@ -13,6 +13,7 @@ ROUTES_JP = [
     {"route_id": "TPE-FUK", "origin": "TPE", "destination": "FUK"},  # 福岡
     {"route_id": "TPE-CTS", "origin": "TPE", "destination": "CTS"},  # 札幌新千歲
     {"route_id": "TPE-NGO", "origin": "TPE", "destination": "NGO"},  # 名古屋中部
+    {"route_id": "TPE-OKA", "origin": "TPE", "destination": "OKA"},  # 沖繩那霸
 ]
 
 ROUTES_OTHER = [
