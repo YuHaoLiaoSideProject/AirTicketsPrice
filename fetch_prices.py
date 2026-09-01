@@ -479,7 +479,8 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true",
                         help="（搭配 --notify）不實際發送，只輸出將送出的 payload")
     parser.add_argument("--region", choices=["jp", "other", "all"], default="all",
-                        help="只爬特定區域航線：jp=日本4條, other=非日本4條, all=全部8條")
+                        help="只爬特定區域航線：jp=日本, other=非日本, all=全部")
+    parser.add_argument("--route", help="指定單一航線（如 TPE-NRT），覆寫 --region")
     args = parser.parse_args()
 
     if args.notify:
@@ -502,8 +503,14 @@ def main() -> int:
     failed = 0
     total = 0
 
-    # 依 --region 選擇航線
-    if args.region == "jp":
+    # 依 --route / --region 選擇航線
+    if args.route:
+        matched = [r for r in config.ROUTES if r["route_id"] == args.route]
+        if not matched:
+            sys.exit(f"❌ 找不到航線 {args.route}，可用：{[r['route_id'] for r in config.ROUTES]}")
+        routes = matched
+        print(f"🎯 指定航線：{args.route} ({matched[0].get('destination', '')})")
+    elif args.region == "jp":
         routes = config.ROUTES_JP
         print(f"🌏 區域：日本 (JP) - {len(routes)} 條航線")
     elif args.region == "other":

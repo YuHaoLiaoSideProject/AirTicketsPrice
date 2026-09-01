@@ -14,7 +14,7 @@ on:
         default: false
         type: boolean
       region:
-        description: '航線區域'
+        description: '航線區域（與 route 二擇一，route 優先）'
         required: false
         default: 'all'
         type: choice
@@ -22,6 +22,22 @@ on:
           - all
           - jp
           - other
+      route:
+        description: '指定航線（覆寫 region）'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - TPE-NRT
+          - TPE-KIX
+          - TPE-FUK
+          - TPE-CTS
+          - TPE-OKA
+          - TPE-NGO
+          - TPE-PUS
+          - TPE-SGN
+          - TPE-BKK
 
 jobs:
   crawl:
@@ -42,22 +58,29 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
-      - name: Determine region
+      - name: Determine region & route
         id: region
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            # 依 cron 時間判斷：週五 12:00(04:00 UTC)=日本，週五 18:00(10:00 UTC)=非日本
-            HOUR=$(date -u +%H)
-            if [ "$HOUR" = "04" ]; then
-              echo "region=jp" >> $GITHUB_OUTPUT
-              echo "📅 排程觸發：週五 12:00 → 日本航線"
-            else
-              echo "region=other" >> $GITHUB_OUTPUT
-              echo "📅 排程觸發：週五 18:00 → 非日本航線"
-            fi
+          # route 優先於 region
+          ROUTE="${{ inputs.route }}"
+          if [ -n "$ROUTE" ]; then
+            echo "route=$ROUTE" >> $GITHUB_OUTPUT
+            echo "🎯 指定航線=$ROUTE"
           else
-            echo "region=${{ inputs.region || 'all' }}" >> $GITHUB_OUTPUT
-            echo "手動觸發：區域=${{ inputs.region || 'all' }}"
+            echo "route=" >> $GITHUB_OUTPUT
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              HOUR=$(date -u +%H)
+              if [ "$HOUR" = "04" ]; then
+                echo "region=jp" >> $GITHUB_OUTPUT
+                echo "📅 排程觸發：週五 12:00 → 日本航線"
+              else
+                echo "region=other" >> $GITHUB_OUTPUT
+                echo "📅 排程觸發：週五 18:00 → 非日本航線"
+              fi
+            else
+              echo "region=${{ inputs.region || 'all' }}" >> $GITHUB_OUTPUT
+              echo "手動觸發：區域=${{ inputs.region || 'all' }}"
+            fi
           fi
 
       - name: Cron jitter（隨機延遲 0~30 分，避免固定整點模式）
@@ -68,7 +91,12 @@ jobs:
       - name: Crawl prices
         # schedule 觸發時必定爬取；手動觸發時依 input 決定
         if: ${{ github.event_name == 'schedule' || inputs.crawl }}
-        run: python fetch_prices.py --region ${{ steps.region.outputs.region }}
+        run: |
+          if [ -n "${{ steps.region.outputs.route }}" ]; then
+            python fetch_prices.py --route ${{ steps.region.outputs.route }}
+          else
+            python fetch_prices.py --region ${{ steps.region.outputs.region }}
+          fi
 
       - name: Build static API
         run: python build_api.py
