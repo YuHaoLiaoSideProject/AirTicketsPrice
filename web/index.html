@@ -61,8 +61,12 @@
     <span id="subStatus" class="sub-status" role="status" aria-live="polite" hidden></span>
   </div>
 
-  <!-- 航線 tab -->
-  <nav id="routeTabs" class="route-tabs" role="tablist" aria-label="選擇航線"></nav>
+  <!-- 地區選擇 + 航線 tab -->
+  <div class="route-nav">
+    <label class="region-label" for="regionSel">地區</label>
+    <select id="regionSel" class="sel region-sel" aria-label="選擇地區"></select>
+    <nav id="routeTabs" class="route-tabs" role="tablist" aria-label="選擇航線"></nav>
+  </div>
 
   <!-- 工具列 -->
   <div class="chart-toolbar" id="toolbar">

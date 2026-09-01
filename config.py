@@ -25,6 +25,12 @@ ROUTES_OTHER = [
 # 向後相容：全航線 = 日本 + 非日本
 ROUTES = ROUTES_JP + ROUTES_OTHER
 
+# 地區分群（前端 region select 用；順序 = UI 顯示順序）
+REGIONS = [
+    {"id": "japan", "name": "日本", "routes": [r["route_id"] for r in ROUTES_JP]},
+    {"id": "other", "name": "其他", "routes": [r["route_id"] for r in ROUTES_OTHER]},
+]
+
 # 查詢未來幾週（去週六 → 下週日）
 NUM_WEEKS = 40
 

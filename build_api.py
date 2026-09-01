@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import holidays
+import config
 
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"
@@ -119,6 +120,7 @@ def main() -> int:
         "total_records": len(records),
         "latest_snapshot_records": len(latest),
         "routes": sorted({r["route_id"] for r in records}),
+        "regions": config.REGIONS,
         "trip_count": len(trips),
         "peaks": peaks,
         "files": files_meta,

@@ -32,6 +32,11 @@
       { id: 'TPE-SGN', name: '胡志明' },
       { id: 'TPE-BKK', name: '曼谷' },
     ],
+    // 地區分群（預設值；api/index.json 帶入時會覆寫）
+    REGIONS: [
+      { id: 'japan', name: '日本', routes: ['TPE-NRT', 'TPE-KIX', 'TPE-FUK', 'TPE-CTS', 'TPE-OKA', 'TPE-NGO'] },
+      { id: 'other', name: '其他', routes: ['TPE-PUS', 'TPE-SGN', 'TPE-BKK'] },
+    ],
     // 日期範圍：僅保留「全部」，不限制週數
     RANGES: [
       { key: 'all', label: '全部', weeks: null },

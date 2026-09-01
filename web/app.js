@@ -18,7 +18,7 @@
 
   // ═══════════════ DOM refs ═══════════════
   const $ = id => document.getElementById(id);
-  const routeTabs = $('routeTabs'), flightSel = $('flightSel'), rangeSeg = $('rangeSeg');
+  const regionSel = $('regionSel'), routeTabs = $('routeTabs'), flightSel = $('flightSel'), rangeSeg = $('rangeSeg');
   const toolbar = $('toolbar'), progress = $('progress');
   const chart = $('chart'), chartWrap = $('chartWrap'), tip = $('tip'), chartTitle = $('chartTitle');
   const skeleton = $('skeleton'), errBox = $('errBox'), errDetail = $('errDetail'), retryBtn = $('retryBtn');
@@ -156,6 +156,7 @@
 
   // ═══════════════ 應用狀態（單一來源） ═══════════════
   const state = {
+    region: 'japan',              // 預設日本地區
     route: CONFIG.ROUTES[0].id,   // 預設東京 TPE-NRT（F-14）
     flight: 'all',                // 'all' = 每週最低價主線；否則航班號（如 'JX 800'）
     range: 'all',                 // 預設顯示全部
@@ -628,9 +629,44 @@
   }
 
   // ═══════════════ 互動層（§2.5） ═══════════════
+  /** 取得目前生效的地區分群（API 帶入優先；fallback 至 CONFIG.REGIONS） */
+  function getRegions() {
+    return (INDEX && INDEX.regions) || CONFIG.REGIONS;
+  }
+
+  /** 地區 id → 該地區的航線 id 陣列 */
+  function routesForRegion(regionId) {
+    const regions = getRegions();
+    const reg = regions.find(r => r.id === regionId);
+    return reg ? reg.routes : [];
+  }
+
+  /** 航線 id → 所屬地區 id（找不到回傳第一個地區） */
+  function regionForRoute(routeId) {
+    const regions = getRegions();
+    for (const reg of regions) {
+      if (reg.routes.includes(routeId)) return reg.id;
+    }
+    return regions[0] ? regions[0].id : (CONFIG.REGIONS[0] ? CONFIG.REGIONS[0].id : 'japan');
+  }
+
+  function renderRegionSel() {
+    const regions = getRegions();
+    regionSel.innerHTML = '';
+    regions.forEach(r => {
+      const o = document.createElement('option');
+      o.value = r.id;
+      o.textContent = r.name;
+      regionSel.appendChild(o);
+    });
+    regionSel.value = state.region;
+  }
+
   function renderRouteTabs() {
     routeTabs.innerHTML = '';
-    CONFIG.ROUTES.forEach(r => {
+    const routeIds = routesForRegion(state.region);
+    const routes = CONFIG.ROUTES.filter(r => routeIds.includes(r.id));
+    routes.forEach(r => {
       const b = document.createElement('button');
       b.className = 'rtab' + (r.id === state.route ? ' active' : '');
       b.setAttribute('role', 'tab');
@@ -689,6 +725,24 @@
   function initControls() {
     if (controlsBound) return; // 重試（init 重跑）不重複綁定，避免 listener 堆疊
     controlsBound = true;
+    regionSel.addEventListener('change', async () => {
+      const newRegion = regionSel.value;
+      if (newRegion === state.region) return;
+      state.region = newRegion;
+      localStorage.setItem('airtickets-region', newRegion);
+      // 切換地區後，選該地區的第一條航線
+      const routes = routesForRegion(newRegion);
+      if (routes.length > 0 && !routes.includes(state.route)) {
+        state.route = routes[0];
+      }
+      renderRouteTabs();
+      setLoading(true);
+      try {
+        await drawCurrentRoute();
+      } finally {
+        setLoading(false);
+      }
+    });
     routeTabs.addEventListener('click', async e => {
       const b = e.target.closest('button[data-route]');
       if (!b || b.dataset.route === state.route || state.loading) return;
@@ -1054,6 +1108,13 @@
     try {
       const { json } = await fetchIndexWithEtag();
       INDEX = json;
+      renderRegionSel();  // API 可能帶入不同 region 分群
+      // 確認 state.region 在新 regions 中存在（API regions 與 CONFIG 不同步時的降級）
+      if (!getRegions().some(r => r.id === state.region)) {
+        state.region = getRegions()[0] ? getRegions()[0].id : 'japan';
+        regionSel.value = state.region;
+        renderRouteTabs();
+      }
       // 過舊警示 + 更新時間（F-10 / F-15）
       setUpdTextFromIndex();
       if (isStale(INDEX.generated_at)) showStale(INDEX.generated_at);
@@ -1122,6 +1183,15 @@
     //    （BDD P2-B「點擊通知開啟對應航線」/ E10 / EC3 子路徑；參數無效 → 忽略維持預設航線）
     const routeParam = new URLSearchParams(location.search).get('route');
     const routeRequested = routeParam && CONFIG.ROUTES.some(r => r.id === routeParam) ? routeParam : null;
+    // 初始化地區：deep-link 航線所屬地區 → localStorage → 預設 'japan'
+    if (routeRequested) {
+      state.region = regionForRoute(routeRequested);
+    } else {
+      const savedRegion = localStorage.getItem('airtickets-region');
+      if (savedRegion && CONFIG.REGIONS.some(r => r.id === savedRegion)) {
+        state.region = savedRegion;
+      }
+    }
     // 0.1 註冊 SW（T6 / §2.3.2 步驟 0）：僅 http(s) 且支援時註冊（localhost 為 secure context）；
     //    失敗靜默降級（file:// / 不支援 → 純記憶體快取，頁面仍可用，§9.1 / E8）
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
@@ -1133,6 +1203,7 @@
     offBar.hidden = true;              // 離線橫幅 / 同步狀態 / 按鈕重置（重試重跑 init 時）
     syncStatus.hidden = true;
     setRefreshDisabled(false, '手動更新');
+    renderRegionSel();
     renderRouteTabs();
     renderRangeSeg();
     initControls();
@@ -1157,9 +1228,11 @@
       const hasTarget = cached && OfflineCache.hasCache(cached.units, cached.meta, routeRequested);
       if (!navigator.onLine && !hasTarget) {
         state.route = CONFIG.ROUTES[0].id;                    // E9：停留原航線（預設東京）
+        state.region = regionForRoute(state.route);           // 回退到預設航線所屬地區
       } else {
         state.route = routeRequested;                          // P2-B / E10：聚焦該航線
       }
+      regionSel.value = state.region;                          // 同步地區下拉
       renderRouteTabs();
       if (!navigator.onLine && !hasTarget) {
         const tab = routeTabs.querySelector('button[data-route="' + routeRequested + '"]');

@@ -46,8 +46,25 @@ body {
 .alertbar { display: flex; align-items: center; gap: 0.45rem; font-size: 0.78rem; color: var(--warning); background: var(--warning-light); border: 1px solid rgba(227,116,0,0.35); border-radius: 8px; padding: 0.45rem 0.8rem; }
 .alertbar .ico { width: 15px; height: 15px; color: var(--warning); }
 
-/* ── 航線 tab ── */
-.route-tabs { display: flex; gap: 0.35rem; border-bottom: 1px solid var(--border); }
+/* ── 地區 + 航線導覽 ── */
+.route-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.region-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.region-sel {
+  flex-shrink: 0;
+  min-width: 90px;
+}
+.route-tabs { display: flex; gap: 0.35rem; flex: 1; min-width: 0; overflow-x: auto; }
 
 /* ═══ PWA 更新橫幅（§7：新版本可用）═══ */
 .update-bar {
@@ -324,8 +341,12 @@ body {
   .change-cards { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 767px) {
-  .route-tabs { flex-direction: column; align-items: stretch; }
-  .rtab { height: var(--h-mobile); justify-content: center; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .route-nav { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+  .region-label { display: none; }
+  .region-sel { height: var(--h-mobile); width: 100%; min-width: 0; }
+  .route-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .route-tabs::-webkit-scrollbar { display: none; }
+  .rtab { flex-shrink: 0; height: var(--h-mobile); border-radius: var(--radius-sm); border: 1px solid var(--border); }
   .rtab.active { box-shadow: none; border-color: var(--accent); border-bottom-color: var(--accent); }
   .chart-toolbar { flex-direction: column; align-items: stretch; gap: 0.6rem; }
   .sel { height: var(--h-mobile); width: 100%; }
