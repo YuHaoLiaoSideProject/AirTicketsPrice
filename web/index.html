@@ -130,6 +130,44 @@
   </div>
 
 </div>
+
+<!-- 詳情 Modal（003-ccard-detail） -->
+<div id="detailModal" class="detail-overlay" role="dialog" aria-modal="true" aria-label="詳情面板" hidden>
+  <div class="detail-backdrop" tabindex="-1"></div>
+  <div class="detail-panel" role="document">
+    <!-- Header -->
+    <div class="detail-header">
+      <div class="detail-title" id="detailTitle"></div>
+      <button class="detail-close" id="detailClose" type="button" aria-label="關閉詳情">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Section 1: 航班價格比較 -->
+    <div class="detail-section" id="detailFlightSection">
+      <h2 class="detail-section-title">航班價格比較</h2>
+      <div id="detailFlightBody"></div>
+    </div>
+    <!-- Section 2: 歷史價格走勢 -->
+    <div class="detail-section" id="detailHistorySection">
+      <h2 class="detail-section-title">歷史價格走勢</h2>
+      <div id="detailChartWrap" class="detail-chart-wrap">
+        <svg id="detailChart" viewBox="0 0 480 160" role="img" aria-label="歷史價格走勢圖"></svg>
+      </div>
+      <div id="detailStats" class="detail-stats"></div>
+    </div>
+    <!-- Footer: 資料說明 -->
+    <div class="detail-footer" id="detailFooter"></div>
+    <!-- 載入中 / 錯誤 -->
+    <div id="detailSkeleton" class="detail-skeleton" hidden aria-hidden="true"></div>
+    <div id="detailError" class="detail-error" hidden>
+      <div class="detail-error-text">資料載入失敗</div>
+      <button class="btn detail-retry" id="detailRetry" type="button">重試</button>
+    </div>
+  </div>
+</div>
+
 <script src="aggregate.js"></script>
 <script src="cache.js"></script>
 <script src="pwa.js"></script>

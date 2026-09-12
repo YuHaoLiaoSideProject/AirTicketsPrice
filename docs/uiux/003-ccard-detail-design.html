@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI/UX 設計規格 — ccard 點擊詳情面板</title>
+<style>
+
+/* ════════════════════════════════════════════════════════════
+   設計 Token（對應前端 CSS 變數）
+   ════════════════════════════════════════════════════════════ */
+:root {
+  --accent: #1a73e8; --accent-hover: #1557b0; --accent-light: rgba(26,115,232,0.12);
+  --success: #188038; --success-light: #e6f4ea; --success-border: #a8dab5;
+  --danger: #c5221f; --danger-light: #fce8e6; --danger-border: #f5c6c2;
+  --warning: #e37400; --warning-light: #fff4e5;
+  --radius: 10px; --radius-sm: 6px; --transition: 0.2s ease;
+  --h: 36px; --h-mobile: 44px; --fs: 0.875rem;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+[data-theme="light"] {
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #f6f7f9; --surface-3: #eef0f3;
+  --border: #e3e6ea; --text: #374151; --muted: #9ca3af;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08); --shadow-lg: 0 12px 32px rgba(0,0,0,0.16);
+  --frame: #eef0f3;
+}
+[data-theme="dark"] {
+  --bg: #11191f; --surface: #181e25; --surface-2: #1e2530; --surface-3: #232c38;
+  --border: #262e38; --text: #c7c9ce; --muted: #7d8590;
+  --shadow: 0 2px 16px rgba(0,0,0,0.45); --shadow-lg: 0 12px 36px rgba(0,0,0,0.6);
+  --frame: #0d1318;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  background: var(--bg); color: var(--text); transition: background var(--transition), color var(--transition);
+  padding: 2rem 1.25rem 4rem;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+.topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem; }
+h1 { font-size: 1.35rem; margin: 0; }
+h2 { font-size: 1.1rem; margin: 0 0 0.25rem; }
+.sub, .fsub { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+.fsub { margin: 0 0 1rem; line-height: 1.6; }
+.controls { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.segmented { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
+.segmented button { border: none; background: none; color: var(--muted); font-size: 0.85rem; padding: 0.45rem 0.9rem; border-radius: 7px; cursor: pointer; transition: all var(--transition); font-weight: 500; }
+.segmented button:hover { color: var(--text); }
+.segmented button.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+
+.frame { background: var(--frame); border: 1px solid var(--border); border-radius: 14px; padding: 1.6rem 1.5rem 1.8rem; margin-bottom: 1.5rem; }
+.browser-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 1rem; }
+.bdot { width: 11px; height: 11px; border-radius: 50%; }
+.bdot:nth-child(1){ background:#f87171 } .bdot:nth-child(2){ background:#fbbf24 } .bdot:nth-child(3){ background:#34d399 }
+.browser-url { flex: 1; max-width: 420px; margin-left: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.8rem; font-size: 0.75rem; color: var(--muted); }
+.elem-count { font-size: 0.72rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 0.2rem 0.7rem; white-space: nowrap; }
+.elem-count b { color: var(--accent); }
+
+.app-page { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); transition: background var(--transition); overflow: hidden; position: relative; }
+.app-page.is-mobile { max-width: 390px; margin: 0 auto; }
+
+/* ── 模擬頁面內容（ccard 區域）── */
+.mock-changes { padding: 1rem; }
+.mock-changes-title { font-size: 0.78rem; font-weight: 600; color: var(--text); margin-bottom: 0.6rem; }
+.mock-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ccard { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; cursor: pointer; transition: box-shadow var(--transition), transform var(--transition); position: relative; }
+.ccard:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.ccard:focus-visible { outline: 3px solid var(--accent-light); outline-offset: 2px; }
+.ccard.active-card { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+.ccard-date { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+.ccard-date svg { width: 12px; height: 12px; flex-shrink: 0; }
+.ccard-price { font-size: 1.05rem; font-weight: 700; color: var(--accent); font-family: var(--mono); line-height: 1.3; }
+.ccard-change { display: inline-flex; align-items: center; gap: 4px; font-size: 0.82rem; font-weight: 700; font-family: var(--mono); margin-top: 4px; padding: 2px 8px; border-radius: 20px; }
+.ccard-change.drop { color: var(--success); background: var(--success-light); }
+.ccard-change.rise { color: var(--danger); background: var(--danger-light); }
+.ccard-change.flat { color: var(--muted); background: var(--surface-2); }
+.ccard-change svg { width: 14px; height: 14px; }
+
+/* ═══ Modal 背景 ═══ */
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.35); z-index: 10; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+.modal-backdrop.mobile-backdrop { align-items: flex-end; }
+
+/* ═══ Modal 面板 ═══ */
+.detail-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); width: 520px; max-width: 95%; max-height: 85vh; overflow-y: auto; animation: modalIn 0.2s ease; }
+@keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.mobile-backdrop .detail-modal { width: 100%; border-radius: 16px 16px 0 0; max-height: 80vh; animation: sheetIn 0.25s ease; }
+@keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border); }
+.modal-header h3 { margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; }
+.modal-header h3 svg { width: 18px; height: 18px; color: var(--accent); }
+.modal-close { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--surface-2); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition); flex-shrink: 0; }
+.modal-close:hover { background: var(--border); color: var(--text); }
+.mobile-backdrop .modal-close { width: 44px; height: 44px; }
+
+/* ═══ Section: 航班比較 ═══ */
+.detail-section { padding: 1rem 1.25rem; }
+.detail-section + .detail-section { border-top: 1px solid var(--border); }
+.section-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem; }
+.section-label svg { width: 15px; height: 15px; }
+
+.flight-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.flight-table th { font-size: 0.7rem; color: var(--muted); font-weight: 600; text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+.flight-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); }
+.flight-table tr:last-child td { border-bottom: none; }
+.flight-table .flight-no { font-family: var(--mono); font-weight: 600; }
+.flight-table .flight-time { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+.flight-table .price { font-family: var(--mono); font-weight: 700; color: var(--accent); }
+.flight-table .vs-avg { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; }
+.flight-table .vs-avg.low { color: var(--success); }
+.flight-table .vs-avg.high { color: var(--danger); }
+.flight-table tr.best { background: var(--success-light); }
+.flight-table tr.best td { color: var(--success); }
+.flight-table tr.best .price { color: var(--success); }
+.best-badge { font-size: 0.65rem; font-weight: 700; background: var(--success); color: #fff; border-radius: 10px; padding: 1px 6px; margin-left: 6px; }
+
+/* ── 降級：單航班 ── */
+.single-flight { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0; }
+.single-flight .sf-no { font-family: var(--mono); font-weight: 700; font-size: 0.9rem; }
+.single-flight .sf-price { font-family: var(--mono); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+.single-flight .sf-vs { font-size: 0.8rem; font-weight: 600; }
+.single-flight .sf-vs.low { color: var(--success); }
+.single-flight .sf-vs.high { color: var(--danger); }
+
+/* ── 降級：售罄/無資料 ── */
+.empty-state { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.82rem; padding: 0.8rem 0; }
+.empty-state svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* ═══ Section: 歷史走勢 ═══ */
+.mini-chart-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.6rem; }
+.mini-chart { width: 100%; height: 120px; display: block; }
+.chart-grid { stroke: var(--border); stroke-width: 0.5; }
+.chart-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-dot { fill: var(--accent); }
+.chart-dot.min-dot { fill: var(--success); stroke: var(--surface); stroke-width: 2; }
+.chart-dot.latest-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.chart-label { fill: var(--muted); font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.chart-min-label { fill: var(--success); font-size: 9px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.chart-axis-label { fill: var(--muted); font-size: 8px; }
+
+.stats-row { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.stat-item { display: flex; flex-direction: column; gap: 0.15rem; }
+.stat-label { font-size: 0.68rem; color: var(--muted); }
+.stat-value { font-size: 0.85rem; font-weight: 700; font-family: var(--mono); }
+.stat-value.green { color: var(--success); }
+.stat-value.red { color: var(--danger); }
+.stat-value.blue { color: var(--accent); }
+
+/* ── 降級：首次抓取 ── */
+.first-scrape { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.82rem; padding: 1rem 0; text-align: center; justify-content: center; }
+.first-scrape svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+/* ═══ Footer ═══ */
+.modal-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; }
+.modal-footer svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* ═══ 元件規格（anatomy）═══ */
+.anatomy { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.1rem; }
+@media (max-width: 760px) { .anatomy { grid-template-columns: 1fr; } }
+.anat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem 1.1rem; }
+.anat-card h4 { margin: 0 0 0.8rem; font-size: 0.92rem; display: flex; align-items: center; gap: 0.4rem; }
+.anat-card h4 .tag { font-size: 0.62rem; font-weight: 700; background: var(--accent-light); color: var(--accent); border-radius: 20px; padding: 0.12rem 0.5rem; }
+.anat-stage { background: var(--frame); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1rem; margin-bottom: 0.85rem; }
+.anat-dims { font-size: 0.74rem; color: var(--muted); line-height: 1.8; }
+.anat-dims b { color: var(--accent); font-family: var(--mono); }
+
+/* 狀態矩陣表 */
+.states { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem; }
+.states th, .states td { border: 1px solid var(--border); padding: 0.55rem 0.75rem; text-align: left; vertical-align: top; }
+.states th { background: var(--surface-2); font-size: 0.74rem; color: var(--muted); font-weight: 700; }
+.states td:first-child { white-space: nowrap; font-weight: 600; }
+.states code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.35rem; font-size: 0.72rem; font-family: var(--mono); }
+
+/* Token 卡片 */
+.tokens { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+.tcard { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 0.95rem; }
+.tcard .tk { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.4px; }
+.tcard .tv { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-top: 0.2rem; }
+.tcard .td { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.5; }
+.tcard .tv.accent { color: var(--accent); }
+
+.footnote { margin-top: 2rem; font-size: 0.72rem; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 0.75rem; line-height: 1.7; }
+
+.note { font-size: 0.78rem; color: var(--muted); margin-top: 1rem; line-height: 1.7; background: var(--surface); border: 1px dashed var(--border); border-radius: 10px; padding: 0.6rem 0.9rem; }
+.note b { color: var(--accent); }
+
+/* mobile 切換 */
+.frame.mobile-frame { display: none; }
+body.view-mobile .frame.mobile-frame { display: block; }
+body.view-mobile .frame.desktop-frame { display: none; }
+.mobile-frame .mock-grid { grid-template-columns: 1fr; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body data-theme="light">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <h1>ccard 點擊詳情面板</h1>
+      <div class="sub">每週票價變動卡片 → 航班比較 + 歷史走勢 · 完整規格</div>
+    </div>
+    <div class="controls">
+      <div class="segmented" id="devSwitch">
+        <button data-dev="desktop" class="active">🖥 Desktop</button>
+        <button data-dev="mobile">📱 Mobile</button>
+      </div>
+      <button class="segmented" id="themeToggle" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;">🌙 切換深色</button>
+    </div>
+  </div>
+
+  <!-- ══════════ 1. 設計 Token ══════════ -->
+  <div class="frame">
+    <h2>1️⃣ 設計 Token</h2>
+    <p class="fsub">所有數值對應前端 CSS 變數，詳情面板共用主頁 token。</p>
+    <div class="tokens">
+      <div class="tcard"><div class="tk">Modal 寬度</div><div class="tv accent">520px</div><div class="td">Desktop · mobile 全寬</div></div>
+      <div class="tcard"><div class="tk">圓角</div><div class="tv">14 / 16px</div><div class="td">Desktop 14px · mobile 16px（top）</div></div>
+      <div class="tcard"><div class="tk">Mini chart 高度</div><div class="tv">120px</div><div class="td">歷史走勢折線圖</div></div>
+      <div class="tcard"><div class="tk">關閉按鈕</div><div class="tv">32 / 44px</div><div class="td">Desktop 32px · mobile 44px</div></div>
+      <div class="tcard"><div class="tk">動畫</div><div class="tv">200ms</div><div class="td">Desktop 淡入 · mobile 底部滑入</div></div>
+      <div class="tcard"><div class="tk">Z-index</div><div class="tv">100</div><div class="td">高於 tooltip（z-index: 5）</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════ 2. Desktop 畫面 ══════════ -->
+  <div class="frame desktop-frame">
+    <h2>2️⃣ Desktop 畫面 — 正常狀態</h2>
+    <p class="fsub">點擊 ccard 後彈出詳情 modal，含航班比較表格 + 歷史走勢折線圖。</p>
+    <div class="browser-bar">
+      <span class="bdot"></span><span class="bdot"></span><span class="bdot"></span>
+      <span class="browser-url">https://yuhao.github.io/AirTicketsPrice/</span>
+      <span class="elem-count">互動：<b>點擊 ccard → 開啟 / ESC 關閉</b></span>
+    </div>
+    <div class="app-page" style="min-height: 480px; position: relative;">
+      <!-- 背景：ccard 區域（半透明可見） -->
+      <div class="mock-changes" style="opacity: 0.4; pointer-events: none;">
+        <div class="mock-changes-title">每週票價變動（與上次抓取比較）</div>
+        <div class="mock-grid">
+          <div class="ccard">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              09/12 出發 → 09/20 回程
+            </div>
+            <div class="ccard-price">NT$15,876</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -1%
+            </div>
+          </div>
+          <div class="ccard active-card">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              09/19 出發 → 09/27 回程
+            </div>
+            <div class="ccard-price">NT$22,260</div>
+            <div class="ccard-change rise">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+              +8%
+            </div>
+          </div>
+          <div class="ccard">
+            <div class="ccard-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              09/26 出發 → 10/04 回程
+            </div>
+            <div class="ccard-price">NT$10,692</div>
+            <div class="ccard-change drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              -12%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal 背景 + 面板 -->
+      <div class="modal-backdrop">
+        <div class="detail-modal" role="dialog" aria-modal="true" aria-label="票價詳情">
+          <!-- Header -->
+          <div class="modal-header">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              09/19 出發 → 09/27 回程
+            </h3>
+            <button class="modal-close" aria-label="關閉詳情">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Section 1: 航班比較 -->
+          <div class="detail-section">
+            <div class="section-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              航班價格比較（TPE-BKK，2 班）
+            </div>
+            <table class="flight-table" role="table">
+              <thead>
+                <tr><th>航班</th><th>時間</th><th>價格</th><th>比平均</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="flight-no">JX 741</td>
+                  <td class="flight-time">09:00 → 12:00</td>
+                  <td class="price">NT$27,492</td>
+                  <td class="vs-avg high">+43%</td>
+                </tr>
+                <tr class="best">
+                  <td class="flight-no">JX 745 <span class="best-badge">最低</span></td>
+                  <td class="flight-time">13:55 → 16:40</td>
+                  <td class="price">NT$15,876</td>
+                  <td class="vs-avg low">-1%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Section 2: 歷史走勢 -->
+          <div class="detail-section">
+            <div class="section-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              歷史價格走勢（JX 745）
+            </div>
+            <div class="mini-chart-wrap">
+              <svg class="mini-chart" viewBox="0 0 460 120" role="img" aria-label="歷史價格走勢：從 8/14 的 NT$18,200 降至 9/11 的 NT$15,876">
+                <!-- Grid lines -->
+                <line x1="40" y1="10" x2="440" y2="10" class="chart-grid"/>
+                <line x1="40" y1="35" x2="440" y2="35" class="chart-grid"/>
+                <line x1="40" y1="60" x2="440" y2="60" class="chart-grid"/>
+                <line x1="40" y1="85" x2="440" y2="85" class="chart-grid"/>
+                <line x1="40" y1="105" x2="440" y2="105" class="chart-grid"/>
+                <!-- Y axis labels -->
+                <text x="36" y="13" class="chart-label" text-anchor="end">28K</text>
+                <text x="36" y="38" class="chart-label" text-anchor="end">24K</text>
+                <text x="36" y="63" class="chart-label" text-anchor="end">20K</text>
+                <text x="36" y="88" class="chart-label" text-anchor="end">16K</text>
+                <text x="36" y="108" class="chart-label" text-anchor="end">12K</text>
+                <!-- Line chart: 4 scrape dates -->
+                <!-- 8/14: 18200 → y≈74, 8/22: 22260 → y≈48, 9/04: 17508 → y≈78, 9/11: 15876 → y≈88 -->
+                <polyline points="70,74 180,48 300,78 420,88" class="chart-line"/>
+                <!-- Dots -->
+                <circle cx="70" cy="74" r="4" class="chart-dot"/>
+                <circle cx="180" cy="48" r="4" class="chart-dot"/>
+                <circle cx="300" cy="78" r="4" class="chart-dot"/>
+                <circle cx="420" cy="88" r="5" class="chart-dot latest-dot"/>
+                <!-- Min dot highlight (8/22 is actually highest, 9/11 is lowest) -->
+                <circle cx="420" cy="88" r="7" class="chart-dot min-dot" style="fill: var(--success);"/>
+                <text x="420" y="103" class="chart-min-label" text-anchor="middle">NT$15,876</text>
+                <!-- X axis labels -->
+                <text x="70" y="118" class="chart-axis-label" text-anchor="middle">8/14</text>
+                <text x="180" y="118" class="chart-axis-label" text-anchor="middle">8/22</text>
+                <text x="300" y="118" class="chart-axis-label" text-anchor="middle">9/04</text>
+                <text x="420" y="118" class="chart-axis-label" text-anchor="middle">9/11</text>
+              </svg>
+            </div>
+            <div class="stats-row">
+              <div class="stat-item">
+                <span class="stat-label">最低價</span>
+                <span class="stat-value green">NT$15,876</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">最高價</span>
+                <span class="stat-value red">NT$22,260</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">降幅</span>
+                <span class="stat-value green">↓ 29%</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">最新抓取</span>
+                <span class="stat-value blue">9/11</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="modal-footer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            資料來自 4 次抓取（8/14 ~ 9/11）· 星宇航空 TPE-BKK
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 元件解剖 -->
+    <div class="anatomy">
+      <div class="anat-card">
+        <h4>詳情 Modal <span class="tag">Overlay</span></h4>
+        <div class="anat-stage" style="text-align: center; padding: 1.5rem;">
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; max-width: 280px; margin: 0 auto; box-shadow: var(--shadow-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span style="font-size: 0.8rem; font-weight: 600;">09/19 出發</span>
+              <span style="width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--muted);">✕</span>
+            </div>
+            <div style="height: 6px; background: var(--surface-2); border-radius: 3px; margin-bottom: 0.4rem;"></div>
+            <div style="height: 6px; background: var(--surface-2); border-radius: 3px; width: 70%;"></div>
+          </div>
+        </div>
+        <div class="anat-dims">
+          寬度 <b>520px</b>（Desktop）· 圓角 <b>14px</b> · 陰影 <b>shadow-lg</b><br>
+          Mobile：全寬 · 圓角 <b>16px</b>（top）· 從底部滑入
+        </div>
+      </div>
+      <div class="anat-card">
+        <h4>航班比較表格 <span class="tag">Table</span></h4>
+        <div class="anat-stage">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+            <tr style="background: var(--success-light);">
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); font-weight: 600; color: var(--success);">JX 745 <span style="font-size: 0.6rem; background: var(--success); color: #fff; border-radius: 8px; padding: 0 4px;">最低</span></td>
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); font-size: 0.72rem; color: var(--muted);">13:55→16:40</td>
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); font-weight: 700; color: var(--success);">NT$15,876</td>
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); color: var(--success);">-1%</td>
+            </tr>
+            <tr>
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); font-weight: 600;">JX 741</td>
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); font-size: 0.72rem; color: var(--muted);">09:00→12:00</td>
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); font-weight: 700; color: var(--accent);">NT$27,492</td>
+              <td style="padding: 0.4rem 0.5rem; font-family: var(--mono); color: var(--danger);">+43%</td>
+            </tr>
+          </table>
+        </div>
+        <div class="anat-dims">
+          欄位：航班 → <b>時間</b> → 價格 → 比平均<br>
+          最低價列 <b>background: success-light</b> · 時間 <b>font-mono 0.72rem</b><br>
+          比平均：<span style="color: var(--success);">低於</span> / <span style="color: var(--danger);">高於</span> 全域平均
+        </div>
+      </div>
+      <div class="anat-card">
+        <h4>Mini 走勢圖 <span class="tag">SVG</span></h4>
+        <div class="anat-stage" style="text-align: center;">
+          <svg width="200" height="60" viewBox="0 0 200 60">
+            <line x1="20" y1="50" x2="190" y2="50" stroke="var(--border)" stroke-width="0.5"/>
+            <polyline points="30,35 80,20 130,38 180,45" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="180" cy="45" r="4" fill="var(--success)" stroke="var(--surface)" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="anat-dims">
+          高度 <b>120px</b> · SVG viewBox <b>460×120</b><br>
+          最低點：<span style="color: var(--success);">green dot</span> + 價格標籤<br>
+          最新點：<span style="color: var(--accent);">blue dot</span> + stroke
+        </div>
+      </div>
+      <div class="anat-card">
+        <h4>降級狀態 <span class="tag">Fallback</span></h4>
+        <div class="anat-stage" style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <!-- 單航班 -->
+          <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem;">
+            <span style="font-family: var(--mono); font-weight: 700;">JX 741</span>
+            <span style="font-family: var(--mono); font-weight: 700; color: var(--accent);">NT$23,027</span>
+            <span style="color: var(--danger); font-size: 0.72rem;">+43%</span>
+          </div>
+          <div style="border-top: 1px dashed var(--border); margin: 0.2rem 0;"></div>
+          <!-- 首次抓取 -->
+          <div style="text-align: center; color: var(--muted); font-size: 0.75rem; padding: 0.3rem 0;">
+            首次抓取，尚無歷史比較
+          </div>
+        </div>
+        <div class="anat-dims">
+          單航班：隱藏表格 → <b>single-flight</b> 單行<br>
+          首次抓取：隱藏圖表 → <b>first-scrape</b> 提示<br>
+          售罄：<b>empty-state</b> 佔位
+        </div>
+      </div>
+    </div>
+
+    <!-- 狀態矩陣 -->
+    <h2 style="margin-top: 1.5rem;">狀態矩陣</h2>
+    <table class="states">
+      <tr><th style="width:160px;">狀態</th><th>視覺</th><th>互動</th></tr>
+      <tr><td>正常（多航班 + 多次抓取）</td><td>完整航班表格 + 折線圖 + 統計摘要</td><td>點擊 ccard 開啟 modal</td></tr>
+      <tr><td>僅 1 航班</td><td>隱藏表格 → 單行卡片（航班 + 價格 + 比平均）；或保留 1 列表格</td><td>同上</td></tr>
+      <tr><td>3+ 航班</td><td>完整表格，按價格排序；最低價綠色高亮</td><td>同上</td></tr>
+      <tr><td>僅 1 次抓取</td><td>隱藏圖表 → 「首次抓取，尚無歷史比較」</td><td>同上</td></tr>
+      <tr><td>售罄</td><td>航班行顯示「已售罄」灰色文字，圖表仍顯示歷史</td><td>同上</td></tr>
+      <tr><td>無價格資料</td><td>「暫無報價」佔位</td><td>同上</td></tr>
+      <tr><td>全部航班售罄</td><td>顯示「本週已售罄」，航班列表仍可見（灰色）</td><td>同上</td></tr>
+      <tr><td>ESC / 點 backdrop</td><td>Modal 淡出關閉</td><td>焦點回到觸發 ccard</td></tr>
+    </table>
+    <div class="note"><b>無障礙：</b>Modal 開啟時 <code>aria-modal="true"</code>，focus 移入；關閉時 focus 回到觸發 ccard。表格使用語意 <code>&lt;table&gt;</code>。漲跌不只用顏色，同時用 ↑↓ 箭頭 + 文字。</div>
+  </div>
+
+  <!-- ══════════ 3. Mobile ══════════ -->
+  <div class="frame mobile-frame">
+    <h2>3️⃣ Mobile — Bottom Sheet</h2>
+    <p class="fsub">Mobile 從底部滑入（sheet style），全寬，關閉按鈕 ≥ 44px（WCAG 2.5.5）。</p>
+    <div class="app-page is-mobile" style="min-height: 520px; position: relative;">
+      <!-- 背景 ccard -->
+      <div class="mock-changes" style="opacity: 0.3; pointer-events: none;">
+        <div class="mock-changes-title">每週票價變動</div>
+        <div class="mock-grid">
+          <div class="ccard">
+            <div class="ccard-date">09/12 出發</div>
+            <div class="ccard-price">NT$15,876</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Bottom Sheet -->
+      <div class="modal-backdrop mobile-backdrop">
+        <div class="detail-modal" role="dialog" aria-modal="true" aria-label="票價詳情">
+          <div class="modal-header">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              09/12 出發 → 09/20 回程
+            </h3>
+            <button class="modal-close" aria-label="關閉詳情" style="width: 44px; height: 44px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="detail-section">
+            <div class="section-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              航班價格比較
+            </div>
+            <table class="flight-table">
+              <thead><tr><th>航班</th><th>價格</th><th>比平均</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td class="flight-no">JX 741</td>
+                  <td class="price">NT$23,027</td>
+                  <td class="vs-avg high">+43%</td>
+                </tr>
+                <tr class="best">
+                  <td class="flight-no">JX 745 <span class="best-badge">最低</span></td>
+                  <td class="price">NT$15,876</td>
+                  <td class="vs-avg low">-1%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="detail-section">
+            <div class="section-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              歷史價格走勢（JX 745）
+            </div>
+            <div class="mini-chart-wrap">
+              <svg class="mini-chart" viewBox="0 0 460 120">
+                <line x1="40" y1="10" x2="440" y2="10" class="chart-grid"/>
+                <line x1="40" y1="60" x2="440" y2="60" class="chart-grid"/>
+                <line x1="40" y1="105" x2="440" y2="105" class="chart-grid"/>
+                <text x="36" y="13" class="chart-label" text-anchor="end">20K</text>
+                <text x="36" y="63" class="chart-label" text-anchor="end">16K</text>
+                <text x="36" y="108" class="chart-label" text-anchor="end">12K</text>
+                <polyline points="70,55 180,30 300,60 420,75" class="chart-line"/>
+                <circle cx="70" cy="55" r="4" class="chart-dot"/>
+                <circle cx="180" cy="30" r="4" class="chart-dot"/>
+                <circle cx="300" cy="60" r="4" class="chart-dot"/>
+                <circle cx="420" cy="75" r="5" class="chart-dot latest-dot"/>
+                <text x="70" y="118" class="chart-axis-label" text-anchor="middle">8/14</text>
+                <text x="180" y="118" class="chart-axis-label" text-anchor="middle">8/22</text>
+                <text x="300" y="118" class="chart-axis-label" text-anchor="middle">9/04</text>
+                <text x="420" y="118" class="chart-axis-label" text-anchor="middle">9/11</text>
+              </svg>
+            </div>
+            <div class="stats-row">
+              <div class="stat-item"><span class="stat-label">最低</span><span class="stat-value green">NT$15,876</span></div>
+              <div class="stat-item"><span class="stat-label">最高</span><span class="stat-value red">NT$23,027</span></div>
+              <div class="stat-item"><span class="stat-label">降幅</span><span class="stat-value green">↓ 31%</span></div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            資料來自 4 次抓取（8/14 ~ 9/11）
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><b>Mobile 規範：</b>觸控目標 <b>44px</b>（WCAG 2.5.5）· 底部滑入動畫 <b>250ms</b> · 全寬 · 圓角 <b>16px</b>（top）</div>
+  </div>
+
+  <!-- ══════════ 4. 降級狀態展示 ══════════ -->
+  <div class="frame">
+    <h2>4️⃣ 降級狀態展示</h2>
+    <p class="fsub">資料少時的對應 UI，確保不失控、不錯位。</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+      <!-- 單航班 -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
+        <div style="font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 0.5rem;">情境 A：僅 1 個航班（TPE-CTS 札幌）</div>
+        <div class="single-flight">
+          <span class="sf-no">JX 900</span>
+          <span style="color: var(--muted); font-size: 0.78rem;">09:00 → 12:50</span>
+          <span class="sf-price">NT$12,500</span>
+          <span class="sf-vs low">比平均低 8%</span>
+        </div>
+      </div>
+
+      <!-- 售罄 -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
+        <div style="font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 0.5rem;">情境 B：售罄</div>
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          本週已售罄
+        </div>
+      </div>
+
+      <!-- 首次抓取：單點 -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
+        <div style="font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 0.5rem;">情境 C：僅 1 次抓取（只有單點，無折線）</div>
+        <div class="mini-chart-wrap" style="margin-bottom: 0.5rem;">
+          <svg class="mini-chart" viewBox="0 0 460 120" style="height: 80px;">
+            <line x1="40" y1="10" x2="440" y2="10" class="chart-grid"/>
+            <line x1="40" y1="60" x2="440" y2="60" class="chart-grid"/>
+            <line x1="40" y1="105" x2="440" y2="105" class="chart-grid"/>
+            <text x="36" y="13" class="chart-label" text-anchor="end">16K</text>
+            <text x="36" y="63" class="chart-label" text-anchor="end">14K</text>
+            <text x="36" y="108" class="chart-label" text-anchor="end">12K</text>
+            <circle cx="240" cy="55" r="5" class="chart-dot latest-dot"/>
+            <text x="240" y="45" class="chart-min-label" text-anchor="middle">NT$14,200</text>
+            <text x="240" y="118" class="chart-axis-label" text-anchor="middle">9/11</text>
+          </svg>
+        </div>
+        <div style="font-size: 0.78rem; color: var(--muted); text-align: center;">僅 1 個資料點，尚無走勢可比較</div>
+      </div>
+
+      <!-- 3 班航線展示 -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; grid-column: span 2;">
+        <div style="font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 0.5rem;">情境 E：3 個航班（TPE-NRT 東京）</div>
+        <table class="flight-table" style="font-size: 0.78rem;">
+          <thead><tr><th>航班</th><th>時間</th><th>價格</th><th>比平均</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="flight-no">JX 800</td>
+              <td class="flight-time">09:00 → 13:10</td>
+              <td class="price" style="color: var(--accent);">NT$14,200</td>
+              <td class="vs-avg low">-5%</td>
+            </tr>
+            <tr class="best">
+              <td class="flight-no">JX 802 <span class="best-badge">最低</span></td>
+              <td class="flight-time">14:30 → 18:40</td>
+              <td class="price" style="color: var(--success);">NT$12,800</td>
+              <td class="vs-avg low">-14%</td>
+            </tr>
+            <tr>
+              <td class="flight-no">JX 804</td>
+              <td class="flight-time">19:00 → 23:10</td>
+              <td class="price" style="color: var(--accent);">NT$18,500</td>
+              <td class="vs-avg high">+24%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 無價格 -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
+        <div style="font-size: 0.75rem; font-weight: 600; color: var(--muted); margin-bottom: 0.5rem;">情境 D：無價格資料</div>
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V6a2 2 0 0 1 2-2h8l2 2h4a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+          暫無報價
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 5. 規格摘要 ══════════ -->
+  <div class="frame">
+    <h2>5️⃣ 規格摘要 — CSS 變數對應</h2>
+    <p class="fsub">實作時直接套用下列變數與結構。</p>
+    <table class="states">
+      <tr><th style="width:200px;">項目</th><th>值</th><th>對應</th></tr>
+      <tr><td>Modal 背景遮罩</td><td>rgba(0,0,0,0.35)</td><td>直接值（非 CSS 變數）</td></tr>
+      <tr><td>Modal 圓角</td><td>14px / 16px</td><td>Desktop / Mobile</td></tr>
+      <tr><td>Modal 陰影</td><td>0 12px 32px rgba(0,0,0,0.16)</td><td><code>--shadow-lg</code></td></tr>
+      <tr><td>最低價高亮</td><td>background: #e6f4ea</td><td><code>--success-light</code></td></tr>
+      <tr><td>漲價文字</td><td>color: #c5221f</td><td><code>--danger</code></td></tr>
+      <tr><td>降價文字</td><td>color: #188038</td><td><code>--success</code></td></tr>
+      <tr><td>圖表主色</td><td>stroke: #1a73e8</td><td><code>--accent</code></td></tr>
+      <tr><td>圖表最低點</td><td>fill: #188038</td><td><code>--success</code></td></tr>
+      <tr><td>字體（mono）</td><td>ui-monospace, SFMono-Regular…</td><td><code>--mono</code></td></tr>
+      <tr><td>動畫時間</td><td>200ms / 250ms</td><td>Desktop 淡入 / Mobile 滑入</td></tr>
+    </table>
+  </div>
+
+  <div class="footnote">
+    📄 設計文件：<b>docs/uiux/003-ccard-detail-design.md</b> ・ 本文件：<b>docs/uiux/003-ccard-detail-design.html</b><br>
+    實作範圍：<b>web/app.js</b>（新增 ccard click handler + detail modal DOM + 迭代渲染）· <b>web/styles.css</b>（新增 modal / flight-table / mini-chart / 降級樣式）<br>
+    航班數量：動態渲染（1 班 CTS/ FUK / NGO / PUS · 2 班 BKK / KIX / OKA / SGN · 3 班 NRT），不寫死。
+  </div>
+</div>
+
+<script>
+// ── 主題切換 ──
+const themeBtn = document.getElementById('themeToggle');
+themeBtn.addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  themeBtn.textContent = dark ? '🌙 切換深色' : '☀️ 切換淺色';
+});
+
+// ── Desktop/Mobile 切換 ──
+const devSwitch = document.getElementById('devSwitch');
+devSwitch.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  devSwitch.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.body.classList.toggle('view-mobile', b.dataset.dev === 'mobile');
+}));
+</script>
+</body>
+</html>

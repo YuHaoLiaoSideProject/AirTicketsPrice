@@ -447,5 +447,6 @@
     formatGeneratedAt,
     formatLastUpdated,
     summaryData,
+    datesFromUrl,
   };
 });
