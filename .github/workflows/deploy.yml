@@ -3,7 +3,7 @@ name: deploy-pages
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'api/**']
+    paths: ['web/**', 'data/**', 'build_api.py']
   workflow_dispatch:
 
 jobs:
@@ -18,11 +18,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Build static API
+        run: python build_api.py
+
       - name: Assemble Pages site
         run: |
           mkdir -p _site
           cp -r web/* _site/
-          [ -d api ] && cp -r api _site/ || true
+          cp -r api _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:
