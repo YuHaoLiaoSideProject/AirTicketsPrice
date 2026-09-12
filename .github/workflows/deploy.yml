@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -r web/* _site/
-          cp -r api _site/
+          [ -d api ] && cp -r api _site/ || true
 
       - uses: actions/upload-pages-artifact@v3
         with:
