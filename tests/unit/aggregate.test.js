@@ -218,8 +218,8 @@ test('F-14 預設航線 = CONFIG.ROUTES 第一條（東京 TPE-NRT）', () => {
   assert.equal(CONFIG.ROUTES[0].name, '東京');
 });
 
-test('F-14b 航線清單含東京/大阪/福岡/札幌（與 config.py ROUTES 同步）', () => {
-  assert.deepEqual(CONFIG.ROUTES.map(r => r.id), ['TPE-NRT', 'TPE-KIX', 'TPE-FUK', 'TPE-CTS', 'TPE-NGO', 'TPE-PUS', 'TPE-SGN']);
+test('F-14b 航線清單含東京/大阪/福岡/札幌/沖繩/名古屋/釜山/胡志明/曼谷（與 config.py ROUTES 同步）', () => {
+  assert.deepEqual(CONFIG.ROUTES.map(r => r.id), ['TPE-NRT', 'TPE-KIX', 'TPE-FUK', 'TPE-CTS', 'TPE-OKA', 'TPE-NGO', 'TPE-PUS', 'TPE-SGN', 'TPE-BKK']);
 });
 
 // ── F-15 更新時間格式化 ──
