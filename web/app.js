@@ -9,7 +9,7 @@
 
   const {
     CONFIG,
-    aggregateWeekly, globalAverage, diffPct, filterRangeWithExpiry,
+    aggregateWeekly, globalAverage, diffPct,
     minMark, detectPeak, isStale, originAllowed, formatGeneratedAt, formatLastUpdated, summaryData,
     hasAnyPrice,
     setPeaks, getPeaks,
@@ -36,24 +36,7 @@
   const changeTableWrap = $('changeTableWrap'); // 每週漲跌表容器
   const changeTableEl = $('changeTable');        // 每週漲跌表內容
 
-  // ═══════════════ 詳情 Modal（003-ccard-detail） ═══════════════
-  const detailOverlay = $('detailModal');
-  const detailPanel = detailOverlay.querySelector('.detail-panel');
-  const detailBackdrop = detailOverlay.querySelector('.detail-backdrop');
-  const detailTitle = $('detailTitle');
-  const detailClose = $('detailClose');
-  const detailFlightBody = $('detailFlightBody');
-  const detailChartWrap = $('detailChartWrap');
-  const detailChart = $('detailChart');
-  const detailStats = $('detailStats');
-  const detailFooter = $('detailFooter');
-  const detailSkeleton = $('detailSkeleton');
-  const detailError = $('detailError');
-  const detailRetry = $('detailRetry');
-
-  let lastTriggerCcard = null;
-  let currentDetailWeek = null;
-  let currentVisible = [];
+  // currentVisible 已移至 chart.js（由 PriceChart.createChart 管理）
 
   // ⚠️ SVG 元素的 `.hidden = true` 只改 IDL property、不會反映成 hidden attribute（Chromium 怪癖），
   // 而 CSS `[hidden] { display:none }` 依賴 attribute → 圖表會"看似隱藏其實仍顯示"。
@@ -192,6 +175,36 @@
   const CACHE_VERSION = 1;                          // 與 cache.js DB_VERSION 連動（D7）；bump → 全量重同步
   const cacheStore = window.OfflineCache.createIdbStorage();  // 瀏覽器 IDB adapter（E8 失敗由 loadCache 拋錯降級）
   let CACHE = null;             // { meta, units } 記憶體投影（app.js 與圖表之間唯一快取視圖）
+  // ═══════════════ 詳情 Modal（003-ccard-detail） ═══════════════
+  const modal = PriceModal.createModal(state, {
+    CACHE: null,    // 首次載入後由 app.js 設定
+    routeCache,
+    PriceAgg: window.PriceAgg,
+    DOM_REFS: {
+      detailOverlay: $('detailModal'),
+      detailTitle: $('detailTitle'),
+      detailClose: $('detailClose'),
+      detailFlightBody: $('detailFlightBody'),
+      detailChartWrap: $('detailChartWrap'),
+      detailChart: $('detailChart'),
+      detailStats: $('detailStats'),
+      detailFooter: $('detailFooter'),
+      detailSkeleton: $('detailSkeleton'),
+      detailError: $('detailError'),
+      detailRetry: $('detailRetry'),
+    },
+  });
+  // ═══════════════ 圖表模組（chart.js） ═══════════════
+  const chartMod = PriceChart.createChart(state, {
+    routeCache,
+    CONFIG,
+    DOM_REFS: { chart, chartWrap, tip, chartTitle },
+    setChartHidden,
+    emptyBox, summary, sumMin, sumMinS, sumAvg, sumPeak, sumPeakS, changeTableWrap,
+    modal,
+    renderSummary,
+    renderChangeCards,
+  });
   let syncing = false;          // 同步進行中旗標（防並行增量同步，F-27）
   // 同步狀態機（§5.3）：'idle'|'first'|'offline'|'comparing'|'syncing'|'fresh'|'stale'|'compare_failed'|'partial'
   let syncState = 'idle';
@@ -512,9 +525,9 @@
       if (!map[routeId]) routeCache.delete(routeId);
     }
     if (currentAffected) {
-      renderFlightSel(routeCache.get(state.route) || []);
+      controls.renderFlightSel(routeCache.get(state.route) || []);
       setUpdTextFromIndex();
-      buildChart();
+      chartMod.buildChart();
     }
   }
 
@@ -648,767 +661,57 @@
     return weeks;
   }
 
-  // ═══════════════ 互動層（§2.5） ═══════════════
-  /** 取得目前生效的地區分群（API 帶入優先；fallback 至 CONFIG.REGIONS） */
-  function getRegions() {
-    return (INDEX && INDEX.regions) || CONFIG.REGIONS;
-  }
+  // ═══════════════ 互動層（§2.5）→ controls.js ═══════════════
+  const controls = window.PriceControls.createControls(state, {
+    CONFIG,
+    getINDEX: () => INDEX,
+    DOM_REFS: { regionSel, routeTabs, flightSel, rangeSeg, progress },
+    cacheRef: { get CACHE() { return CACHE; } },
+    showRouteHint,
+    setAbort: () => abortCtl.abort(),
+    onInit: init,
+    callbacks: {
+      onRegionChange: async (newRegion) => {
+        const routes = controls.routesForRegion(newRegion);
+        if (routes.length > 0 && !routes.includes(state.route)) {
+          state.route = routes[0];
+        }
+        controls.renderRouteTabs();
+        setLoading(true);
+        try {
+          await drawCurrentRoute();
+        } finally {
+          setLoading(false);
+        }
+      },
+      onRouteChange: async () => {
+        setLoading(true);
+        try {
+          await drawCurrentRoute();
+        } finally {
+          setLoading(false);
+        }
+      },
+      onFlightChange: () => chartMod.buildChart(),
+      onRangeChange: () => chartMod.buildChart(),
+    },
+  });
 
-  /** 地區 id → 該地區的航線 id 陣列 */
-  function routesForRegion(regionId) {
-    const regions = getRegions();
-    const reg = regions.find(r => r.id === regionId);
-    return reg ? reg.routes : [];
-  }
-
-  /** 航線 id → 所屬地區 id（找不到回傳第一個地區） */
-  function regionForRoute(routeId) {
-    const regions = getRegions();
-    for (const reg of regions) {
-      if (reg.routes.includes(routeId)) return reg.id;
-    }
-    return regions[0] ? regions[0].id : (CONFIG.REGIONS[0] ? CONFIG.REGIONS[0].id : 'japan');
-  }
-
-  function renderRegionSel() {
-    const regions = getRegions();
-    regionSel.innerHTML = '';
-    regions.forEach(r => {
-      const o = document.createElement('option');
-      o.value = r.id;
-      o.textContent = r.name;
-      regionSel.appendChild(o);
-    });
-    regionSel.value = state.region;
-  }
-
-  function renderRouteTabs() {
-    routeTabs.innerHTML = '';
-    const routeIds = routesForRegion(state.region);
-    const routes = CONFIG.ROUTES.filter(r => routeIds.includes(r.id));
-    routes.forEach(r => {
-      const b = document.createElement('button');
-      b.className = 'rtab' + (r.id === state.route ? ' active' : '');
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', r.id === state.route ? 'true' : 'false');
-      b.dataset.route = r.id;
-      b.innerHTML = r.name + ' <span class="code">' + r.id + '</span>';
-      routeTabs.appendChild(b);
-    });
-  }
-
-  function renderRangeSeg() {
-    rangeSeg.innerHTML = '';
-    CONFIG.RANGES.forEach(r => {
-      const b = document.createElement('button');
-      b.className = r.key === state.range ? 'active' : '';
-      b.setAttribute('aria-pressed', r.key === state.range ? 'true' : 'false');
-      b.dataset.range = r.key;
-      b.textContent = r.label;
-      rangeSeg.appendChild(b);
-    });
-  }
-
-  /** 航班下拉選項 = 該航線所有未過期週 flights 聯集；目前航班不存在 → 回退 all */
-  function renderFlightSel(weeks) {
-    const { isExpired } = window.PriceAgg;
-    const flightSet = [];
-    for (const w of weeks) {
-      if (isExpired(w.d)) continue; // 過期週不出現在航班下拉選項
-      for (const no of Object.keys(w.f)) {
-        if (!flightSet.includes(no)) flightSet.push(no);
-      }
-    }
-    if (!flightSet.includes(state.flight)) state.flight = 'all'; // 回退（大阪無 JX 800）
-    flightSel.innerHTML = '';
-    const all = document.createElement('option');
-    all.value = 'all';
-    all.textContent = '全部（每週最低價）';
-    flightSel.appendChild(all);
-    flightSet.forEach(no => {
-      const o = document.createElement('option');
-      o.value = no;
-      o.textContent = '航班 ' + no; // DOM API 建構，避免 API 資料注入 HTML（XSS）
-      flightSel.appendChild(o);
-    });
-    flightSel.value = state.flight;
-  }
-
-  function setToolbarDisabled(disabled) {
-    flightSel.disabled = disabled;
-    rangeSeg.querySelectorAll('button').forEach(b => (b.disabled = disabled));
-    routeTabs.querySelectorAll('button').forEach(b => (b.disabled = disabled));
-    if (disabled) progress.hidden = false; else progress.hidden = true;
-  }
-
-  let controlsBound = false;
-  function initControls() {
-    if (controlsBound) return; // 重試（init 重跑）不重複綁定，避免 listener 堆疊
-    controlsBound = true;
-    regionSel.addEventListener('change', async () => {
-      const newRegion = regionSel.value;
-      if (newRegion === state.region) return;
-      state.region = newRegion;
-      localStorage.setItem('airtickets-region', newRegion);
-      // 切換地區後，選該地區的第一條航線
-      const routes = routesForRegion(newRegion);
-      if (routes.length > 0 && !routes.includes(state.route)) {
-        state.route = routes[0];
-      }
-      renderRouteTabs();
-      setLoading(true);
-      try {
-        await drawCurrentRoute();
-      } finally {
-        setLoading(false);
-      }
-    });
-    routeTabs.addEventListener('click', async e => {
-      const b = e.target.closest('button[data-route]');
-      if (!b || b.dataset.route === state.route || state.loading) return;
-      // E2：離線切到從未載入航線 → tab 提示 + 停留原航線（不切換、不發請求、不出錯誤卡）
-      if (!navigator.onLine && !OfflineCache.hasCache(CACHE ? CACHE.units : {}, CACHE ? CACHE.meta : null, b.dataset.route)) {
-        showRouteHint(b);
-        return;
-      }
-      state.route = b.dataset.route;
-      renderRouteTabs();
-      setLoading(true);
-      await drawCurrentRoute();
-      setLoading(false);
-    });
-    flightSel.addEventListener('change', () => {
-      state.flight = flightSel.value;
-      buildChart();
-    });
-    rangeSeg.addEventListener('click', e => {
-      const b = e.target.closest('button[data-range]');
-      if (!b) return;
-      state.range = b.dataset.range;
-      renderRangeSeg();
-      buildChart();
-    });
-    retryBtn.addEventListener('click', init);
-    window.addEventListener('beforeunload', () => abortCtl.abort()); // F-22
-  }
-
-  // ═══════════════ 圖表層（§2.6，移植 mockup） ═══════════════
-  const NS = 'http://www.w3.org/2000/svg';
-  const { W, H, M } = CONFIG.SVG;
-  // YMIN / YMAX 改為 buildChart 內從資料動態計算（不再使用固定值）
+  // ═══════════════ 圖表層（§2.6）→ 已移至 chart.js ═══════════════
+  // SVG 常數、fmt、fmtD、esc、svgEl、rangeLabel、buildChart、showTip、hideTip 已拆至 chart.js
+  // app.js 保留 fmt/esc 供 renderChangeCards 使用
   const fmt = n => 'NT$' + n.toLocaleString('en-US');
   const fmtD = d => d ? d.split('-').slice(1).join('/') : '—';
-  // HTML 跳脫（API 資料進入 innerHTML 前必經，防 XSS）
   const esc = s => String(s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const svgEl = (name, attrs) => {
-    const e = document.createElementNS(NS, name);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    return e;
-  };
-  const rangeLabel = () => (CONFIG.RANGES.find(r => r.key === state.range) || CONFIG.RANGES[3]).label;
 
-  function buildChart() {
-    const weeks = routeCache.get(state.route) || [];
-    // 航線無任何有效價格資料（trips 全缺 / 全部無效）：一律空狀態，不渲染空網格圖表。
-    // 所有進入點（切航線 / 切航班 / 切範圍）都經過這裡，避免任一操作後空圖表復現（F-11 擴充）
-    if (!hasAnyPrice(weeks)) {
-      setChartHidden(true);
-      emptyBox.hidden = false;
-      chartTitle.textContent = '';
-      chart.removeAttribute('aria-label');
-      chart.innerHTML = ''; // 清掉殘留圖形（如切航線前他航線的網格/折線）
-      // 無資料：Summary 三卡清空並整區隱藏（避免殘留他航線數字 / 「—」殘影）
-      sumMin.textContent = '—'; sumMinS.textContent = '';
-      sumAvg.textContent = '—';
-      sumPeak.textContent = '—'; sumPeakS.textContent = '';
-      summary.hidden = true;
-      changeTableWrap.hidden = true; // 漲跌表也隱藏
-      return;
-    }
-    currentVisible = filterRangeWithExpiry(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
-    const visible = currentVisible;
-    const avg = globalAverage(weeks); // 全域（不隨範圍漂移，F-06）
-    const n = visible.length;
-    if (n === 0) return; // 可見範圍無資料（防呆）
-    const X = i => M.l + i * (W - M.l - M.r) / Math.max(n - 1, 1); // 單週資料時避免除以零（NaN）
-
-    // ── 動態 Y 軸：從可見資料計算 ──
-    const prices = visible.map(w => w.min).filter(v => v != null);
-    const dataMin = Math.min(...prices);
-    const dataMax = Math.max(...prices);
-    const PAD = 1000; // 上下各留 1K 空間
-    const YMIN = Math.max(0, Math.floor((dataMin - PAD) / 1000) * 1000);
-    const YMAX = Math.ceil((dataMax + PAD) / 1000) * 1000;
-    // 確保至少 6K 範圍（避免只有一格網格）
-    const yMin = Math.min(YMIN, YMAX - 6000);
-    const yMax = Math.max(YMAX, YMIN + 6000);
-
-    const Y = v => H - M.b - (v - yMin) / (yMax - yMin) * (H - M.t - M.b);
-    const Yclamp = v => Math.max(Y(v), M.t); // E21：出界點 clamp 至圖表上緣
-
-    chart.innerHTML = '';
-    const routeInfo = CONFIG.ROUTES.find(r => r.id === state.route) || { name: state.route };
-
-    // Y 軸網格 + 標籤（動態間距：依範圍自動選 2K/3K/4K/5K/6K）
-    const range = yMax - yMin;
-    const step = range <= 12000 ? 2000 : range <= 18000 ? 3000 : range <= 24000 ? 4000 : range <= 36000 ? 5000 : 6000;
-    for (let v = yMin; v <= yMax; v += step) {
-      chart.appendChild(svgEl('line', { x1: M.l, y1: Y(v), x2: W - M.r, y2: Y(v), 'class': 'grid-major' }));
-      const t = svgEl('text', { x: M.l - 8, y: Y(v) + 4, 'class': 'tick-label', 'text-anchor': 'end' });
-      t.textContent = (v / 1000) + 'K';
-      chart.appendChild(t);
-    }
-    for (let i = 0; i < n; i += 4) {
-      const t = svgEl('text', { x: X(i), y: H - M.b + 16, 'class': 'tick-label', 'text-anchor': 'middle' });
-      t.textContent = fmtD(visible[i].d);
-      chart.appendChild(t);
-    }
-    const cap = svgEl('text', { x: W - M.r, y: H - 4, 'class': 'axis-caption', 'text-anchor': 'end' });
-    cap.textContent = '出發日期（週六）· 單位 TWD 來回';
-    chart.appendChild(cap);
-
-    // 旺季區塊（在可見範圍內定位；含重疊裁切；地區性 peaks 依當前航線過濾，如櫻花季）
-    getPeaks().forEach(p => {
-      if (p.routes && !p.routes.includes(state.route)) return; // 不屬於此航線的旺季不畫
-      const start = visible.findIndex(w => w.d >= p.from);
-      if (start < 0) return;
-      if (visible[start].d > p.to) return; // 可見範圍在旺季結束之後 → 無交集，避免單格殘影
-      let end = start;
-      while (end + 1 < visible.length && visible[end + 1].d <= p.to) end++;
-      const x1 = X(start);
-      const x2 = X(end) + (X(1) - X(0));
-      chart.appendChild(svgEl('rect', { x: x1, y: M.t, width: x2 - x1, height: H - M.t - M.b, 'class': 'peak-rect', rx: 4 }));
-      const t = svgEl('text', { x: x1 + 6, y: M.t + 15, 'class': 'peak-label' });
-      t.textContent = p.label;
-      chart.appendChild(t);
-    });
-
-    // 全域平均虛線
-    if (avg !== null) {
-      chart.appendChild(svgEl('line', { x1: M.l, y1: Y(avg), x2: W - M.r, y2: Y(avg), 'class': 'avg-line' }));
-      const al = svgEl('text', { x: W - M.r - 4, y: Y(avg) - 7, 'class': 'avg-label', 'text-anchor': 'end' });
-      al.textContent = '平均 ' + fmt(avg);
-      chart.appendChild(al);
-    }
-
-    // 資料點（null → 斷點；航班模式取 w.f[flight]，undefined → null）
-    const pts = visible.map((w, i) => {
-      let price = w.min;
-      if (state.flight !== 'all') price = (w.f && w.f[state.flight] !== undefined) ? w.f[state.flight] : null;
-      return { i, x: X(i), y: price === null ? null : Yclamp(price), price, w };
-    });
-
-    // 折線（斷點分段；僅有單點（無 L 段）時不產生退化 path）
-    let d = '', seg = false, hasLine = false;
-    pts.forEach(p => {
-      if (p.y === null) { seg = false; return; }
-      if (seg) hasLine = true;
-      d += (seg ? ' L' : ' M') + p.x + ' ' + p.y;
-      seg = true;
-    });
-    if (hasLine) chart.appendChild(svgEl('path', { d, 'class': 'price-line' }));
-
-    // 資料點 circle + 售罄/缺資料標示 + 漲跌 badge
-    pts.forEach(p => {
-      if (p.y === null) {
-        // 缺資料/售罄週：平均線高度畫空心虛線圈（gap-dot）
-        chart.appendChild(svgEl('circle', { cx: p.x, cy: Y(avg ?? yMin), r: 4, 'class': 'gap-dot', 'data-i': p.i }));
-        if (p.w.status === 'sold_out') {
-          const t = svgEl('text', { x: p.x, y: H - M.b + 30, 'class': 'sold-out-label', 'text-anchor': 'middle' });
-          t.textContent = '售罄';
-          chart.appendChild(t);
-        }
-        return;
-      }
-      // 資料點 dot（含漲跌色彩 class）
-      let dotClass = 'dot';
-      if (p.w.minChangePct !== null && p.w.minChangePct !== undefined) {
-        if (p.w.minChangePct < 0) dotClass += ' down';
-        else if (p.w.minChangePct > 0) dotClass += ' up';
-      }
-      const c = svgEl('circle', { cx: p.x, cy: p.y, r: 4, 'class': dotClass, tabindex: '0', role: 'button' });
-      c.setAttribute('data-i', p.i);
-      c.setAttribute('aria-label', '出發 ' + p.w.d + '，價格 ' + fmt(p.price));
-      chart.appendChild(c);
-
-      // 漲跌 badge（只顯示有變動且變動 > 1% 的點，避免過度 clutter）
-      if (p.w.minChangePct !== null && p.w.minChangePct !== undefined && Math.abs(p.w.minChangePct) >= 1) {
-        const isDrop = p.w.minChangePct < 0;
-        const badgeClass = isDrop ? 'change-badge down' : (p.w.minChangePct > 0 ? 'change-badge up' : 'change-badge flat');
-        const badgeText = (isDrop ? '↓' : '↑') + ' ' + Math.abs(p.w.minChangePct) + '%';
-        // badge 位置：降價 → dot 上方；漲價 → dot 下方（避免與折線重疊）
-        const badgeY = isDrop ? p.y - 11 : p.y + 15;
-        const badge = svgEl('text', { x: p.x, y: badgeY, 'class': badgeClass, 'text-anchor': 'middle' });
-        badge.textContent = badgeText;
-        chart.appendChild(badge);
-      }
-    });
-
-    // 可見範圍最低價標記（F-05）
-    const mark = minMark(visible);
-    if (mark && mark.d) {
-      const mi = visible.findIndex(w => w === mark);
-      if (mi >= 0) {
-        const p = pts[mi];
-        if (p.y !== null) {
-          chart.appendChild(svgEl('circle', { cx: p.x, cy: p.y, r: 7, 'class': 'dot min', 'data-i': p.i }));
-          const ml = svgEl('text', { x: p.x, y: Math.max(p.y - 13, M.t + 10), 'class': 'min-label', 'text-anchor': 'middle' });
-          ml.textContent = '最便宜 ' + fmt(mark.min);
-          chart.appendChild(ml);
-        }
-      }
-    }
-
-    // chart-title（BDD 標題格式）
-    const flightLabel = state.flight === 'all' ? '每週最低價' : '航班 ' + state.flight;
-    chartTitle.innerHTML = '<b>' + esc(routeInfo.name) + ' ' + esc(state.route) + '</b> · ' +
-      esc(flightLabel) + ' · 顯示 ' + esc(rangeLabel()) + '（共 ' + n + ' 週）';
-    chart.setAttribute('aria-label', '票價趨勢圖：' + routeInfo.name + ' ' + state.route + '，' + flightLabel + '，' + rangeLabel());
-
-    renderSummary(visible, avg, state.route);
-    renderChangeCards(visible);
-  }
-
-  // ═══════════════ Tooltip（§2.7） ═══════════════
-  function showTip(w, ev) {
-    const avg = globalAverage(routeCache.get(state.route) || []);
-    let html = '<div class="t-date">去程 ' + esc(fmtD(w.d)) + '（週六）· 回程 ' + esc(fmtD(w.r)) + '</div>';
-    let price = w.min;
-    if (state.flight !== 'all') price = (w.f && w.f[state.flight] !== undefined) ? w.f[state.flight] : null;
-    if (price !== null && price !== undefined) {
-      const diff = diffPct(price, avg);
-      html += '<div class="t-price">' + fmt(price) + '</div>' +
-        '<div class="' + (diff <= 0 ? 't-low' : 't-high') + '">比平均' + (diff <= 0 ? '便宜' : '貴') + ' ' + Math.abs(diff) + '%</div>';
-      // 漲跌資訊（scrape-vs-scrape）
-      if (state.flight !== 'all') {
-        const fc = w.fc && w.fc[state.flight];
-        if (fc && fc.changePct !== null && fc.changePct !== undefined) {
-          const cls = fc.changePct <= 0 ? 't-low' : 't-high';
-          const arrow = fc.changePct < 0 ? '↓' : '↑';
-          html += '<div class="' + cls + '">較上次 ' + formatChangePct(fc.changePct) +
-            '（' + arrow + ' ' + fmt(Math.abs(fc.change)) + '）</div>';
-        }
-      } else if (w.minChangePct !== null && w.minChangePct !== undefined) {
-        const cls = w.minChangePct <= 0 ? 't-low' : 't-high';
-        const arrow = w.minChangePct < 0 ? '↓' : '↑';
-        html += '<div class="' + cls + '">較上次 ' + formatChangePct(w.minChangePct) +
-          '（' + arrow + ' ' + fmt(Math.abs(w.minChange)) + '）</div>';
-      }
-    } else if (w.status === 'sold_out') {
-      html += '<div class="t-none">本週已售罄</div>';
-    } else {
-      html += '<div class="t-none">本週無資料</div>';
-    }
-    if (state.flight !== 'all') {
-      html += '<div class="t-fl">航班 ' + esc(state.flight) + '</div>';
-    } else if (w.min !== null && w.f) {
-      const no = Object.keys(w.f).find(k => w.f[k] === w.min);
-      if (no) html += '<div class="t-fl">最低價航班 ' + esc(no) + '</div>';
-    }
-    tip.innerHTML = html;
-    tip.classList.add('show');
-    if (ev) {
-      const isMobile = window.matchMedia('(max-width: 767px)').matches;
-      if (isMobile) {
-        tip.style.left = Math.min(ev.clientX + 10, window.innerWidth - 190) + 'px';
-        tip.style.top = Math.max(ev.clientY - 90, 4) + 'px';
-      } else {
-        const r = chartWrap.getBoundingClientRect();
-        tip.style.left = Math.min(ev.clientX - r.left + 16, r.width - 190) + 'px';
-        tip.style.top = Math.max(ev.clientY - r.top - 12, 4) + 'px';
-      }
-    }
-  }
-  function hideTip() { tip.classList.remove('show'); }
+  // ═══════════════ buildChart / showTip / hideTip → 已拆至 chart.js ═══════════════
 
   // ═══════════════ 每週漲跌表（scrape-vs-scrape 變動）═══════════════
   // SVG 箭頭圖示（aria-hidden，跨平台一致）
   const SVG_ARROW_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>';
   const SVG_ARROW_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
   const SVG_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-
-  // ═══════════════ 詳情 Modal — aggregateHistory ═══════════════
-
-  /**
-   * 從 CACHE.units 中聚合指定 outbound_date 的歷史走勢資料。
-   */
-  function aggregateHistory(outboundDate, routeId) {
-    if (!CACHE || !CACHE.units) return [];
-    const pat = '/' + routeId + '/';
-    for (const [url, rec] of Object.entries(CACHE.units)) {
-      if (!url.includes(pat)) continue;
-      const { d } = datesFromUrl(url);
-      if (d !== outboundDate) continue;
-      const json = rec.json;
-      if (!json || !Array.isArray(json.flights)) return [];
-      const scrapedDates = new Set();
-      for (const fl of json.flights) {
-        if (!Array.isArray(fl.history)) continue;
-        for (const h of fl.history) {
-          if (h.scraped_at) scrapedDates.add(h.scraped_at.split('T')[0]);
-        }
-      }
-      const result = [];
-      for (const sd of Array.from(scrapedDates).sort()) {
-        let minPrice = null;
-        for (const fl of json.flights) {
-          if (!Array.isArray(fl.history)) continue;
-          const entry = fl.history.find(h => h.scraped_at && h.scraped_at.startsWith(sd));
-          if (entry && entry.status === 'Available' && typeof entry.price_total === 'number') {
-            if (minPrice === null || entry.price_total < minPrice) {
-              minPrice = entry.price_total;
-            }
-          }
-        }
-        result.push({ scrapedAt: sd, price: minPrice });
-      }
-      return result;
-    }
-    return [];
-  }
-
-  /**
-   * 從 CACHE.units 取得該 week 的原始航班列表（含售罄）。
-   */
-  function getRawFlightsForWeek(week) {
-    if (!CACHE || !CACHE.units || !week.d) return [];
-    const pat = '/' + state.route + '/';
-    for (const [url, rec] of Object.entries(CACHE.units)) {
-      if (!url.includes(pat)) continue;
-      const { d } = datesFromUrl(url);
-      if (d !== week.d) continue;
-      const json = rec.json;
-      if (json && Array.isArray(json.flights)) return json.flights;
-    }
-    return [];
-  }
-
-  /**
-   * 單航班卡片 HTML（無表格時使用）。
-   */
-  function buildSingleFlightHTML(fl, avg) {
-    const isSoldOut = fl.status !== 'Available' || fl.price === null;
-    let priceHTML;
-    if (isSoldOut) {
-      priceHTML = '<span class="detail-soldout">已售罄</span>';
-    } else if (fl.price === null) {
-      priceHTML = '<span class="detail-no-price">暫無報價</span>';
-    } else {
-      priceHTML = fmt(fl.price);
-    }
-
-    let diffHTML = '';
-    if (fl.price !== null && avg !== null) {
-      const diff = diffPct(fl.price, avg);
-      const cls = diff <= 0 ? 'diff-low' : 'diff-high';
-      const arrow = diff < 0 ? '↓' : '↑';
-      diffHTML = '<div class="' + cls + '">' + arrow + ' 比平均' + (diff <= 0 ? '便宜' : '貴') + ' ' + Math.abs(diff) + '%</div>';
-    }
-
-    return '<div class="detail-flight-card-no">' + esc(fl.no) + '</div>' +
-      '<div class="detail-flight-card-time">' + esc((fl.depTime || '—') + ' → ' + (fl.arrTime || '—')) + '</div>' +
-      '<div class="detail-flight-card-price">' + priceHTML + '</div>' +
-      diffHTML;
-  }
-
-  // ═══════════════ 詳情 Modal — open / close ═══════════════
-
-  function openDetail(week, triggerCcard) {
-    currentDetailWeek = week;
-    lastTriggerCcard = triggerCcard;
-    detailFlightBody.innerHTML = '';
-    detailChart.innerHTML = '';
-    detailStats.innerHTML = '';
-    detailFooter.innerHTML = '';
-    detailError.hidden = true;
-    detailSkeleton.hidden = false;
-    detailTitle.textContent = fmtD(week.d) + ' 出發 → ' + fmtD(week.r) + ' 回程';
-    detailOverlay.hidden = false;
-    document.body.style.overflow = 'hidden';
-    detailClose.focus();
-    requestAnimationFrame(() => {
-      renderDetailFlight(week);
-      renderDetailChart(week);
-      renderDetailFooter(week);
-      detailSkeleton.hidden = true;
-    });
-  }
-
-  function closeDetail() {
-    detailOverlay.hidden = true;
-    document.body.style.overflow = '';
-    currentDetailWeek = null;
-    if (lastTriggerCcard) {
-      lastTriggerCcard.focus();
-      lastTriggerCcard = null;
-    }
-  }
-
-  detailClose.addEventListener('click', closeDetail);
-  detailBackdrop.addEventListener('click', closeDetail);
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !detailOverlay.hidden) closeDetail();
-  });
-  detailOverlay.addEventListener('keydown', e => {
-    if (e.key !== 'Tab') return;
-    const focusable = detailPanel.querySelectorAll(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault(); last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault(); first.focus();
-    }
-  });
-
-  detailRetry.addEventListener('click', () => {
-    if (currentDetailWeek) openDetail(currentDetailWeek, lastTriggerCcard);
-  });
-
-  // ═══════════════ 詳情 Modal — renderDetailFlight ═══════════════
-
-  function renderDetailFlight(week) {
-    const rawFlights = getRawFlightsForWeek(week);
-    const allFlights = rawFlights.map(fl => {
-      const no = fl.outbound_flight_no;
-      const { price, status } = latestPrice(fl);
-      return {
-        no,
-        price,
-        status,
-        depTime: fl.outbound_departure_time || null,
-        arrTime: fl.outbound_arrival_time || null,
-      };
-    });
-
-    if (allFlights.length === 0) {
-      detailFlightBody.innerHTML = '<div class="detail-empty">無航班資料</div>';
-      return;
-    }
-
-    const avg = globalAverage(routeCache.get(state.route) || []);
-
-    if (allFlights.length === 1) {
-      const fl = allFlights[0];
-      const card = document.createElement('div');
-      card.className = 'detail-flight-card';
-      card.innerHTML = buildSingleFlightHTML(fl, avg);
-      detailFlightBody.appendChild(card);
-      return;
-    }
-
-    allFlights.sort((a, b) => {
-      if (a.price === null && b.price === null) return 0;
-      if (a.price === null) return 1;
-      if (b.price === null) return -1;
-      return a.price - b.price;
-    });
-
-    const minPrice = allFlights.find(f => f.price !== null)?.price ?? null;
-    const table = document.createElement('table');
-    table.className = 'detail-flight-table';
-    const thead = document.createElement('thead');
-    thead.innerHTML = '<tr><th>航班</th><th>時間</th><th>價格</th><th>比平均</th></tr>';
-    table.appendChild(thead);
-    const tbody = document.createElement('tbody');
-    for (const fl of allFlights) {
-      const tr = document.createElement('tr');
-      const isMin = fl.price !== null && fl.price === minPrice;
-      const isSoldOut = fl.status !== 'Available' || fl.price === null;
-      if (isMin) tr.classList.add('row-min');
-      if (isSoldOut) tr.classList.add('row-soldout');
-
-      let priceHTML;
-      if (isSoldOut) {
-        priceHTML = '<span class="detail-soldout">已售罄</span>';
-      } else if (fl.price === null) {
-        priceHTML = '<span class="detail-no-price">暫無報價</span>';
-      } else {
-        priceHTML = fmt(fl.price);
-      }
-
-      let diffHTML = '—';
-      if (fl.price !== null && avg !== null) {
-        const diff = diffPct(fl.price, avg);
-        const cls = diff <= 0 ? 'diff-low' : 'diff-high';
-        const arrow = diff < 0 ? '↓' : '↑';
-        diffHTML = '<span class="' + cls + '">' + arrow + ' ' + Math.abs(diff) + '%</span>';
-      }
-
-      const timeText = (fl.depTime || '—') + ' → ' + (fl.arrTime || '—');
-
-      tr.innerHTML =
-        '<td class="detail-fl-no">' + esc(fl.no) + (isMin ? ' <span class="detail-min-badge">最低</span>' : '') + '</td>' +
-        '<td class="detail-fl-time">' + esc(timeText) + '</td>' +
-        '<td class="detail-fl-price">' + priceHTML + '</td>' +
-        '<td class="detail-fl-diff">' + diffHTML + '</td>';
-      tbody.appendChild(tr);
-    }
-    table.appendChild(tbody);
-    detailFlightBody.appendChild(table);
-
-    if (minPrice !== null) {
-      const minFl = allFlights.find(f => f.price === minPrice);
-      const summary = document.createElement('div');
-      summary.className = 'detail-flight-summary';
-      summary.textContent = '最低價：' + minFl.no + ' ' + fmt(minPrice);
-      detailFlightBody.appendChild(summary);
-    }
-  }
-
-  // ═══════════════ 詳情 Modal — renderDetailChart ═══════════════
-
-  function renderDetailChart(week) {
-    const history = aggregateHistory(week.d, state.route);
-    detailChart.innerHTML = '';
-
-    if (history.length === 0) {
-      detailChartWrap.hidden = true;
-      return;
-    }
-    detailChartWrap.hidden = false;
-
-    const validHistory = history.filter(h => h.price !== null);
-
-    if (validHistory.length === 0) {
-      detailChartWrap.hidden = true;
-      return;
-    }
-
-    if (validHistory.length === 1) {
-      renderDetailChartSinglePoint(validHistory[0], week);
-      return;
-    }
-
-    renderDetailChartLine(validHistory, week);
-  }
-
-  function renderDetailChartSinglePoint(point, week) {
-    const W = 480, H = 160;
-    const cx = W / 2, cy = H / 2;
-    detailChart.appendChild(svgEl('circle', { cx, cy, r: 6, fill: 'var(--accent, #1a73e8)' }));
-    const label = svgEl('text', { x: cx, y: cy - 14, 'text-anchor': 'middle', class: 'detail-chart-label' });
-    label.textContent = fmt(point.price);
-    detailChart.appendChild(label);
-    detailStats.innerHTML = '<div class="detail-single-hint">僅 1 個資料點，尚無走勢可比較</div>';
-    detailStats.innerHTML += '<div class="detail-stats-row">資料日期：' + esc(point.scrapedAt) + '</div>';
-  }
-
-  function renderDetailChartLine(history, week) {
-    const W = 480, H = 160;
-    const M = { l: 50, r: 16, t: 20, b: 30 };
-    const n = history.length;
-
-    const prices = history.map(h => h.price);
-    const dataMin = Math.min(...prices);
-    const dataMax = Math.max(...prices);
-    const PAD = Math.max(500, (dataMax - dataMin) * 0.1);
-    const yMin = Math.max(0, dataMin - PAD);
-    const yMax = dataMax + PAD;
-
-    const X = i => M.l + i * (W - M.l - M.r) / Math.max(n - 1, 1);
-    const Y = v => H - M.b - (v - yMin) / (yMax - yMin) * (H - M.t - M.b);
-
-    // Y 軸網格
-    const range = yMax - yMin;
-    const step = range <= 4000 ? 1000 : range <= 8000 ? 2000 : range <= 16000 ? 4000 : 6000;
-    for (let v = Math.ceil(yMin / step) * step; v <= yMax; v += step) {
-      detailChart.appendChild(svgEl('line', {
-        x1: M.l, y1: Y(v), x2: W - M.r, y2: Y(v),
-        stroke: 'var(--border, #e0e0e0)', 'stroke-width': 0.5, 'stroke-dasharray': '2,2',
-      }));
-      const t = svgEl('text', {
-        x: M.l - 4, y: Y(v) + 4,
-        'text-anchor': 'end', fill: 'var(--muted, #888)', 'font-size': '9px', 'font-family': 'var(--mono, monospace)',
-      });
-      t.textContent = (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'K';
-      detailChart.appendChild(t);
-    }
-
-    // X 軸日期標記
-    const stepX = Math.max(1, Math.floor(n / 5));
-    for (let i = 0; i < n; i += stepX) {
-      const t = svgEl('text', {
-        x: X(i), y: H - 4,
-        'text-anchor': 'middle', fill: 'var(--muted, #888)', 'font-size': '8px', 'font-family': 'var(--mono, monospace)',
-      });
-      t.textContent = history[i].scrapedAt.slice(5);
-      detailChart.appendChild(t);
-    }
-
-    // 折線
-    let d = '';
-    history.forEach((h, i) => {
-      d += (i === 0 ? 'M' : ' L') + X(i) + ' ' + Y(h.price);
-    });
-    detailChart.appendChild(svgEl('path', {
-      d, fill: 'none', stroke: 'var(--accent, #1a73e8)', 'stroke-width': 2, 'stroke-linejoin': 'round',
-    }));
-
-    // 找最低點與最新點
-    let minIdx = 0;
-    history.forEach((h, i) => { if (h.price < history[minIdx].price) minIdx = i; });
-    const latestIdx = history.length - 1;
-
-    // 最低點（綠色）
-    detailChart.appendChild(svgEl('circle', {
-      cx: X(minIdx), cy: Y(history[minIdx].price), r: 5,
-      fill: 'var(--success, #228b22)', stroke: '#fff', 'stroke-width': 1.5,
-    }));
-    const minLabel = svgEl('text', {
-      x: X(minIdx), y: Y(history[minIdx].price) - 10,
-      'text-anchor': 'middle', fill: 'var(--success, #228b22)', 'font-size': '9px', 'font-weight': '600', 'font-family': 'var(--mono, monospace)',
-    });
-    minLabel.textContent = fmt(history[minIdx].price);
-    detailChart.appendChild(minLabel);
-
-    // 最新點（藍色；若與最低點重合則不重複標記）
-    if (latestIdx !== minIdx) {
-      detailChart.appendChild(svgEl('circle', {
-        cx: X(latestIdx), cy: Y(history[latestIdx].price), r: 5,
-        fill: 'var(--accent, #1a73e8)', stroke: '#fff', 'stroke-width': 1.5,
-      }));
-    }
-
-    // 統計摘要
-    const allPrices = history.map(h => h.price);
-    const lowest = Math.min(...allPrices);
-    const highest = Math.max(...allPrices);
-    const lowestDate = history[allPrices.indexOf(lowest)].scrapedAt;
-    const highestDate = history[allPrices.indexOf(highest)].scrapedAt;
-    const dropPct = highest > 0 ? Math.round((highest - lowest) / highest * 100) : 0;
-    const allSame = prices.every(p => p === prices[0]);
-
-    let statsHTML = '';
-    if (allSame) {
-      statsHTML = '<div class="detail-stats-row">價格穩定</div>';
-    } else {
-      statsHTML =
-        '<div class="detail-stats-row">最低 ' + fmt(lowest) + '（' + esc(lowestDate) + '）</div>' +
-        '<div class="detail-stats-row">最高 ' + fmt(highest) + '（' + esc(highestDate) + '）</div>' +
-        '<div class="detail-stats-row">降幅 <span class="diff-low">' + dropPct + '% ↓</span></div>';
-    }
-    detailStats.innerHTML = statsHTML;
-  }
-
-  // ═══════════════ 詳情 Modal — renderDetailFooter ═══════════════
-
-  function renderDetailFooter(week) {
-    const history = aggregateHistory(week.d, state.route);
-    if (history.length === 0) {
-      detailFooter.hidden = true;
-      return;
-    }
-    detailFooter.hidden = false;
-    const dates = history.map(h => h.scrapedAt).sort();
-    const first = dates[0];
-    const last = dates[dates.length - 1];
-    detailFooter.textContent = '資料來自 ' + history.length + ' 次抓取（' + first + ' ~ ' + last + '）';
-  }
 
   function renderChangeCards(visible) {
     // 有價格的週都顯示（無比較基準時顯示「首次抓取」）
@@ -1446,15 +749,16 @@
   // ═══════════════ ccard Click Handler（003-ccard-detail） ═══════════════
   function bindCcardClicks() {
     const ccards = changeTableEl.querySelectorAll('.ccard');
+    const visible = modal.getCurrentVisible();
     ccards.forEach((card, idx) => {
-      const week = currentVisible[idx];
+      const week = visible[idx];
       if (!week) return;
-      card.addEventListener('click', () => openDetail(week, card));
+      card.addEventListener('click', () => modal.openDetail(week, card));
       card.style.cursor = 'pointer';
       card.addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          openDetail(week, card);
+          modal.openDetail(week, card);
         }
       });
     });
@@ -1484,7 +788,7 @@
     skeleton.hidden = !loading;
     if (loading) { setChartHidden(true); emptyBox.hidden = true; }
     // 載入完成後的 chart/emptyBox 顯示由 drawCurrentRoute 依資料決定（避免空航線顯示空白 SVG）
-    setToolbarDisabled(loading);
+    controls.setToolbarDisabled(loading);
   }
 
   function showError(code, detail) {
@@ -1515,12 +819,12 @@
     });
     if (!weeks) return; // 過期回應已丟棄
     routeCache.set(state.route, weeks);
-    renderFlightSel(weeks);
+    controls.renderFlightSel(weeks);
     skeleton.hidden = true;
-    // 圖表顯示/隱藏與空狀態由 buildChart 依資料決定（含 trips 全缺、全部無效價）
+    // 圖表顯示/隱藏與空狀態由 chart.buildChart 依資料決定（含 trips 全缺、全部無效價）
     setChartHidden(false);
     emptyBox.hidden = true;
-    buildChart();
+    chartMod.buildChart();
   }
 
   /** 首次載入（情境 A / E1）：全量載入預設航線 + 寫快取（meta 為 commit 點，§2.3.2） */
@@ -1529,12 +833,12 @@
     try {
       const { json } = await fetchIndexWithEtag();
       INDEX = json;
-      renderRegionSel();  // API 可能帶入不同 region 分群
+      controls.renderRegionSel();  // API 可能帶入不同 region 分群
       // 確認 state.region 在新 regions 中存在（API regions 與 CONFIG 不同步時的降級）
-      if (!getRegions().some(r => r.id === state.region)) {
-        state.region = getRegions()[0] ? getRegions()[0].id : 'japan';
+      if (!controls.getRegions().some(r => r.id === state.region)) {
+        state.region = controls.getRegions()[0] ? controls.getRegions()[0].id : 'japan';
         regionSel.value = state.region;
-        renderRouteTabs();
+        controls.renderRouteTabs();
       }
       // 過舊警示 + 更新時間（F-10 / F-15）
       setUpdTextFromIndex();
@@ -1555,11 +859,11 @@
       }, abortCtl.signal);
       const weeks = aggregateWeekly(urls, fetched.map(jsonForResult));
       routeCache.set(state.route, weeks);
-      renderFlightSel(weeks);
+      controls.renderFlightSel(weeks);
       skeleton.hidden = true;
       setChartHidden(false);
       emptyBox.hidden = true;
-      buildChart();
+      chartMod.buildChart();
       setLoading(false);   // 先解除 loading（IDB 寫入不阻塞 UI，E2E-14b）
       // 寫快取（meta.generatedAt / syncedAt / indexTrips / routeLoadedAt）
       const units = {};
@@ -1593,10 +897,10 @@
   function drawCurrentRouteFromCache() {
     const weeks = weeksFromCache(state.route);
     routeCache.set(state.route, weeks);
-    renderFlightSel(weeks);
+    controls.renderFlightSel(weeks);
     setChartHidden(false);
     emptyBox.hidden = true;
-    buildChart();
+    chartMod.buildChart();
   }
 
   async function init() {
@@ -1606,7 +910,7 @@
     const routeRequested = routeParam && CONFIG.ROUTES.some(r => r.id === routeParam) ? routeParam : null;
     // 初始化地區：deep-link 航線所屬地區 → localStorage → 預設 'japan'
     if (routeRequested) {
-      state.region = regionForRoute(routeRequested);
+      state.region = controls.regionForRoute(routeRequested);
     } else {
       const savedRegion = localStorage.getItem('airtickets-region');
       if (savedRegion && CONFIG.REGIONS.some(r => r.id === savedRegion)) {
@@ -1624,10 +928,11 @@
     offBar.hidden = true;              // 離線橫幅 / 同步狀態 / 按鈕重置（重試重跑 init 時）
     syncStatus.hidden = true;
     setRefreshDisabled(false, '手動更新');
-    renderRegionSel();
-    renderRouteTabs();
-    renderRangeSeg();
-    initControls();
+    controls.renderRegionSel();
+    controls.renderRouteTabs();
+    controls.renderRangeSeg();
+    controls.initControls();
+    chartMod.bindChartEvents();
     initPwaPush();   // fire-and-forget：訂閱 UI 初始化不延後首繪（§2.6；不彈權限詢問，D5）
     initUpdateDetection();  // PWA 更新偵測：新版本可用時顯示橫幅
 
@@ -1649,12 +954,12 @@
       const hasTarget = cached && OfflineCache.hasCache(cached.units, cached.meta, routeRequested);
       if (!navigator.onLine && !hasTarget) {
         state.route = CONFIG.ROUTES[0].id;                    // E9：停留原航線（預設東京）
-        state.region = regionForRoute(state.route);           // 回退到預設航線所屬地區
+        state.region = controls.regionForRoute(state.route);           // 回退到預設航線所屬地區
       } else {
         state.route = routeRequested;                          // P2-B / E10：聚焦該航線
       }
       regionSel.value = state.region;                          // 同步地區下拉
-      renderRouteTabs();
+      controls.renderRouteTabs();
       if (!navigator.onLine && !hasTarget) {
         const tab = routeTabs.querySelector('button[data-route="' + routeRequested + '"]');
         if (tab) showRouteHint(tab);                          // 「此航線尚未下載，需連網」（render 後才 append，避免被重繪清除）
@@ -1682,27 +987,7 @@
     backgroundCompare();
   }
 
-  // tooltip 事件（事件委派）
-  chart.addEventListener('mousemove', e => {
-    const c = e.target.closest ? e.target.closest('circle[data-i]') : null;
-    if (!c) { hideTip(); return; }
-    const i = +c.dataset.i;
-    const weeks = routeCache.get(state.route) || [];
-    const visible = filterRangeWithExpiry(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
-    showTip(visible[i], e);
-  });
-  chart.addEventListener('mouseleave', hideTip);
-  chart.addEventListener('focusin', e => {
-    const c = e.target.closest ? e.target.closest('circle[data-i]') : null;
-    if (!c) return;
-    const i = +c.dataset.i;
-    const weeks = routeCache.get(state.route) || [];
-    const visible = filterRangeWithExpiry(weeks, (CONFIG.RANGES.find(r => r.key === state.range) || {}).weeks);
-    // 鍵盤 focus 無滑鼠座標 → 以資料點位置定位 tooltip（E2E-17）
-    const rect = c.getBoundingClientRect();
-    showTip(visible[i], { clientX: rect.left + rect.width / 2, clientY: rect.top });
-  });
-  chart.addEventListener('focusout', hideTip);
+  // tooltip 事件 → 已移至 chart.js 的 chart.bindChartEvents()
 
   // 啟動
   if (document.readyState === 'loading') {
