@@ -32,8 +32,8 @@ jobs:
       - name: Assemble Pages site
         run: |
           mkdir -p _site
-          cp -r web/* _site/
           cp -r api _site/
+          cd web && find . -mindepth 1 -maxdepth 1 ! -name api -exec cp -r {} ../_site/ \;
 
       - uses: actions/upload-pages-artifact@v3
         with:
