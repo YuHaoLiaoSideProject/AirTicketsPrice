@@ -1,0 +1,109 @@
+name: weekly-crawl-other
+
+on:
+  schedule:
+    # 每週五 18:00 (UTC+8) = 10:00 UTC → 非日本航線
+    - cron: "0 10 * * 5"
+  workflow_dispatch:
+    inputs:
+      crawl:
+        description: '爬取新資料'
+        required: false
+        default: true
+        type: boolean
+      route:
+        description: '指定航線（可選，覆寫全非日本）'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - TPE-PUS
+          - TPE-SGN
+          - TPE-BKK
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PUSH_API_TOKEN: ${{ secrets.PUSH_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Cron jitter
+        if: github.event_name == 'schedule'
+        run: python -c "import random,time; time.sleep(random.uniform(0, 1800))"
+
+      - name: Crawl other routes
+        if: ${{ github.event_name == 'schedule' || inputs.crawl }}
+        run: |
+          ROUTE="${{ inputs.route }}"
+          if [ -n "$ROUTE" ]; then
+            python fetch_prices.py --route "$ROUTE"
+          else
+            python fetch_prices.py --region other
+          fi
+
+      - name: Build static API
+        run: python build_api.py
+
+      - name: Commit data
+        if: ${{ github.event_name == 'schedule' || inputs.crawl }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "無變更，跳過 commit"
+          else
+            git commit -m "chore: 更新機票價格（其他航線）$(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase origin main
+            git push
+          fi
+
+      - name: Detect drops & notify
+        if: ${{ github.event_name == 'schedule' || inputs.crawl }}
+        env:
+          PUSH_NOTIFY_URL: https://airtickets-price-push.h770320.workers.dev/notify
+        run: |
+          if [ -n "$PUSH_API_TOKEN" ]; then
+            python fetch_prices.py --notify
+          else
+            echo "未設定 PUSH_API_TOKEN，跳過通知"
+          fi
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p _site
+          cp -r web/* _site/
+          cp -r api   _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy-pages:
+    needs: crawl
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
