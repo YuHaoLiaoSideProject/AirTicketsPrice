@@ -10,3 +10,6 @@ test-results/
 
 # 建置產物（由 CI build_api.py 產生，Pages 部署時才需要）
 api/
+
+# pi agent 工作目錄（各 session 報告/產物，不進版控）
+.pi/
