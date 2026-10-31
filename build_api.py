@@ -58,6 +58,19 @@ def latest_snapshot(records: list[dict]) -> list[dict]:
                                  r["return_date"], r["outbound_flight_no"]))
 
 
+def latest_value(history: list[dict], field: str):
+    """取價格歷史中「最新且有值」的欄位（舊資料可能缺時段欄位）。
+
+    history 已依 scraped_at 升冪排序，故由後往前找第一個非空值；
+    全部為空則回傳 None（前端以 '—' 呈現）。
+    """
+    for h in reversed(history):
+        value = h.get(field)
+        if value:
+            return value
+    return None
+
+
 def build_trips(records: list[dict]) -> list[dict]:
     """把紀錄依 (航線, 去程, 回程) 分組，每個航班一條價格歷史。"""
     trips: dict[tuple, dict] = {}
@@ -75,6 +88,10 @@ def build_trips(records: list[dict]) -> list[dict]:
                              key=lambda r: r["scraped_at"])
             flights.append({
                 "outbound_flight_no": flight_no,
+                "outbound_departure_time": latest_value(
+                    history, "outbound_departure_time"),
+                "outbound_arrival_time": latest_value(
+                    history, "outbound_arrival_time"),
                 "airline_code": history[-1]["airline_code"],
                 "airline_name": history[-1]["airline_name"],
                 "history": [{
