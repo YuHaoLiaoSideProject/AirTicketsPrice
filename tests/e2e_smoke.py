@@ -9,6 +9,7 @@
 
 執行：python tests/e2e_smoke.py
 """
+import datetime as _dt
 import functools
 import http.server
 import json
@@ -52,24 +53,40 @@ def mock_trip(d, r, flights):
                 for no, price, status in flights]}
 
 
+# ── 動態 fixture 日期：一律取「未來週六」
+# 原本寫死 2026-08 出發週，已被 web/aggregate.js isExpired()（出發日 < 今日即過濾）濾掉 →
+# 無可見週 → 畫不出 path.price-line（套件卡死點 E2E-07c）。改為動態生成，測試不隨日期腐化
+# （同 E2E-25 做法）。
+def future_week_dates(i):
+    """第 i 個未來出發週六 → (去程 'YYYY-MM-DD', 回程 'YYYY-MM-DD')。"""
+    t0 = _dt.datetime.now(_dt.timezone.utc)
+    off = (5 - t0.weekday()) % 7 + 7              # 下一個未來週六（至少 1 天後）
+    dep = t0 + _dt.timedelta(days=off + 7 * i)
+    ret = t0 + _dt.timedelta(days=off + 8 + 7 * i)
+    return dep.strftime('%Y-%m-%d'), ret.strftime('%Y-%m-%d')
+
+
+def trip_url(route, i):
+    d, r = future_week_dates(i)
+    return 'api/trips/%s/%s_%s.json' % (route, d, r)
+
+
+MOCK_WEEK_DATES = [future_week_dates(i) for i in range(6)]
 MOCK_WEEKS = [
-    mock_trip('2026-08-15', '2026-08-23', [('JX 800', 32296, 'Available'), ('JX 802', 46072, 'Available')]),
-    mock_trip('2026-08-22', '2026-08-30', [('JX 800', 46600, 'Available'), ('JX 802', 38200, 'Available')]),
-    mock_trip('2026-08-29', '2026-09-06', [('JX 800', 17176, 'Available'), ('JX 802', 16756, 'Available')]),
-    mock_trip('2026-09-05', '2026-09-13', [('JX 800', 15862, 'Available'), ('JX 802', 14853, 'Available')]),
-    mock_trip('2026-09-12', '2026-09-20', [('JX 800', 17638, 'Available'), ('JX 802', 16546, 'Available')]),
+    mock_trip(MOCK_WEEK_DATES[0][0], MOCK_WEEK_DATES[0][1], [('JX 800', 32296, 'Available'), ('JX 802', 46072, 'Available')]),
+    mock_trip(MOCK_WEEK_DATES[1][0], MOCK_WEEK_DATES[1][1], [('JX 800', 46600, 'Available'), ('JX 802', 38200, 'Available')]),
+    mock_trip(MOCK_WEEK_DATES[2][0], MOCK_WEEK_DATES[2][1], [('JX 800', 17176, 'Available'), ('JX 802', 16756, 'Available')]),
+    mock_trip(MOCK_WEEK_DATES[3][0], MOCK_WEEK_DATES[3][1], [('JX 800', 15862, 'Available'), ('JX 802', 14853, 'Available')]),
+    mock_trip(MOCK_WEEK_DATES[4][0], MOCK_WEEK_DATES[4][1], [('JX 800', 17638, 'Available'), ('JX 802', 16546, 'Available')]),
 ]
-MOCK_TRIP_URLS = ['api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
-                  'api/trips/TPE-NRT/2026-08-22_2026-08-30.json',
-                  'api/trips/TPE-NRT/2026-08-29_2026-09-06.json',
-                  'api/trips/TPE-NRT/2026-09-05_2026-09-13.json',
-                  'api/trips/TPE-NRT/2026-09-12_2026-09-20.json']
+MOCK_TRIP_URLS = [trip_url('TPE-NRT', i) for i in range(5)]
+MOCK_SOLDOUT_URL = trip_url('TPE-NRT', 5)          # 獨立第 6 週，避免與既有週 URL 撞重複
 
 
 def mock_index(generated_at='2026-08-14T12:00:00.000Z', trips=None, include_soldout_week=False):
     tl = list(trips) if trips is not None else list(MOCK_TRIP_URLS)
     if include_soldout_week:
-        tl.append('api/trips/TPE-NRT/2026-09-05_2026-09-13.json')
+        tl.append(MOCK_SOLDOUT_URL)
     return {'generated_at': generated_at, 'routes': ['TPE-NRT', 'TPE-KIX'], 'trips': tl,
             'trip_count': len(tl), 'latest_file': 'mock.json'}
 
@@ -77,8 +94,8 @@ def mock_index(generated_at='2026-08-14T12:00:00.000Z', trips=None, include_sold
 def mock_trip_map(include_soldout_week=False):
     m = {u: t for u, t in zip(MOCK_TRIP_URLS, MOCK_WEEKS)}
     if include_soldout_week:
-        m['api/trips/TPE-NRT/2026-09-05_2026-09-13.json'] = mock_trip(
-            '2026-09-05', '2026-09-13',
+        m[MOCK_SOLDOUT_URL] = mock_trip(
+            MOCK_WEEK_DATES[5][0], MOCK_WEEK_DATES[5][1],
             [('JX 800', None, 'SoldOut'), ('JX 802', None, 'SoldOut')])
     return m
 
@@ -146,7 +163,8 @@ def run_tests(browser):
     check('E2E-01 預設東京 tab active', page.locator('#routeTabs button.active').inner_text().startswith('東京'))
     # 動態比對：badge 日期 = api/index.json 的 generated_at（每次 build 後時間戳會變，不寫死避免脆測）
     with open(os.path.join(ROOT, 'api', 'index.json'), encoding='utf-8') as f:
-        exp_date = json.load(f)['generated_at'][:10]
+        index_json = json.load(f)
+    exp_date = index_json['generated_at'][:10]
     check('E2E-01 更新時間 badge', f'資料更新 {exp_date}' in page.locator('#updText').inner_text(),
           f'期望 {exp_date}')
     tab_count = page.locator('#routeTabs button').count()
@@ -154,10 +172,28 @@ def run_tests(browser):
     check('E2E-02 折線繪出', page.locator('#chart path.price-line').count() == 1)
     check('E2E-02 Summary 三卡可見（有資料）', not page.locator('#summary').evaluate('el => el.hidden'))
     # 回歸：狀態容器初始必須隱藏（CSS [hidden] 不可被 display 覆蓋）
-    check('E2E-02b 初始狀態容器皆隱藏',
-          page.locator('#errBox').evaluate('el => el.hidden && getComputedStyle(el).display === "none"') and
-          page.locator('#emptyBox').evaluate('el => el.hidden && getComputedStyle(el).display === "none"') and
-          page.locator('#staleBar').evaluate('el => el.hidden && getComputedStyle(el).display === "none"'))
+    def _hidden_and_none(sel):
+        return page.locator(sel).evaluate(
+            'el => el.hidden && getComputedStyle(el).display === "none"')
+
+    check('E2E-02b 錯誤/空狀態容器初始隱藏',
+          _hidden_and_none('#errBox') and _hidden_and_none('#emptyBox'),
+          {'errBox': _hidden_and_none('#errBox'), 'emptyBox': _hidden_and_none('#emptyBox')})
+    # staleBar 是「條件式」容器：資料過期（generated_at 超過 STALE_DAYS）時**應該**顯示，
+    # 未過期才必須隱藏。斷言依實際資料狀態推導，不以修改資料日期強行過關。
+    with open(os.path.join(ROOT, 'web', 'aggregate.js'), encoding='utf-8') as f:
+        stale_days = int(re.search(r'STALE_DAYS:\s*(\d+)', f.read()).group(1))
+    gen_iso = index_json['generated_at'].replace('Z', '+00:00')
+    gen_dt = _dt.datetime.fromisoformat(gen_iso)
+    data_stale = (_dt.datetime.now(_dt.timezone.utc) - gen_dt).total_seconds() / 86400 > stale_days
+    if data_stale:
+        stale_ok = page.locator('#staleBar').evaluate(
+            'el => !el.hidden && getComputedStyle(el).display !== "none"')
+        check('E2E-02b staleBar 顯示（資料已過期 > %d 天）' % stale_days, stale_ok,
+              page.locator('#staleText').inner_text())
+    else:
+        check('E2E-02b staleBar 隱藏（資料未過期）', _hidden_and_none('#staleBar'),
+              page.locator('#staleText').inner_text())
     check('E2E-02 平均虛線繪出', page.locator('#chart line.avg-line').count() == 1)
     check('E2E-03 最低價標記', page.locator('#chart circle.dot.min').count() == 1)
     check('E2E-03 圖例 4 項', page.locator('.legend-row .lg').count() == 4)
@@ -196,6 +232,77 @@ def run_tests(browser):
     # E2E-22 旺季卡
     peakAll = page.locator('#sumPeakS').inner_text()
     check('E2E-22 旺季卡存在', '櫻花' in peakAll or '非旺季' in peakAll, peakAll)
+
+    # E2E-24 ccard → 詳情 Modal 回歸（003-ccard-detail；s2-bug-report 根因：CACHE 依賴固定 null）
+    card0 = page.locator('#changeTable .ccard').first
+    lab0 = card0.get_attribute('aria-label') or ''
+    card0.click()
+    page.wait_for_timeout(300)
+    body0 = page.locator('#detailFlightBody').inner_text()
+    check('E2E-24 點卡片顯示航班表格',
+          page.locator('#detailFlightBody .detail-flight-table, #detailFlightBody .detail-flight-card').count() >= 1,
+          body0[:60])
+    check('E2E-24 不再顯示「無航班資料」', '無航班資料' not in body0, body0[:60])
+    check('E2E-24 標題日期與卡片一致（S1 對位）',
+          page.locator('#detailTitle').inner_text().startswith(lab0.split(' ')[0]),
+          f'{lab0[:30]!r} → {page.locator("#detailTitle").inner_text()!r}')
+    check('E2E-24 歷史 footer 顯示抓取次數',
+          '資料來自' in page.locator('#detailFooter').inner_text(),
+          page.locator('#detailFooter').inner_text())
+    page.locator('#detailClose').click()
+    page.wait_for_timeout(200)
+
+    # E2E-25 S1 對位回歸：售罄週（min===null）被過濾後，卡片 idx 仍須開到正確週
+    # （動態取未來週六，避免 fixture 日期過期被 isExpired 過濾；中間週全售罄 → 不渲染卡片）
+    _sat = lambda i: future_week_dates(i)[0]
+    _ret = lambda i: future_week_dates(i)[1]
+    trips25 = [
+        mock_trip(_sat(0), _ret(0), [('JX 800', 30000, 'Available'), ('JX 802', 32000, 'Available')]),
+        mock_trip(_sat(1), _ret(1), [('JX 800', 31000, 'Available'), ('JX 802', 33000, 'Available')]),
+        mock_trip(_sat(2), _ret(2), [('JX 800', None, 'SoldOut'), ('JX 802', None, 'SoldOut')]),
+        mock_trip(_sat(3), _ret(3), [('JX 800', 28000, 'Available'), ('JX 802', 29000, 'Available')]),
+    ]
+    urls25 = ['api/trips/TPE-NRT/%s_%s.json' % (_sat(i), _ret(i)) for i in range(4)]
+    idx25 = mock_index(trips=urls25)
+    p25, e25 = new_page(browser, viewport={'width': 1280, 'height': 900})
+
+    def handler25(route):
+        url = route.request.url
+        if '/api/index.json' in url:
+            route.fulfill(status=200, content_type='application/json',
+                          body=json.dumps(idx25, ensure_ascii=False))
+        elif '/api/trips/' in url:
+            key = 'api/' + url.split('/api/')[-1]
+            body = trips25[urls25.index(key)] if key in urls25 else None
+            if body is None:
+                route.fulfill(status=404, body='not found')
+            else:
+                route.fulfill(status=200, content_type='application/json',
+                              body=json.dumps(body, ensure_ascii=False))
+        else:
+            route.continue_()
+
+    p25.route('**/api/**', handler25)
+    p25.goto(URL + '/web/')
+    p25.wait_for_selector('#chart path.price-line', timeout=8000)
+    p25.wait_for_timeout(300)
+    cards25 = p25.locator('#changeTable .ccard')
+    n25 = cards25.count()
+    check('E2E-25 售罄週不渲染卡片（4 週 → 3 卡）', n25 == 3, f'got {n25}')
+    if n25 == 3:
+        exp25 = _dt.datetime.strptime(_sat(3), '%Y-%m-%d').strftime('%m/%d')
+        cards25.nth(2).click()
+        p25.wait_for_timeout(300)
+        title25 = p25.locator('#detailTitle').inner_text()
+        check('E2E-25 點卡片開到正確週（非 null 週，S1 對位）', title25.startswith(exp25),
+              f'期望 {exp25} → {title25!r}')
+        check('E2E-25 詳情有航班表格',
+              p25.locator('#detailFlightBody .detail-flight-table, #detailFlightBody .detail-flight-card').count() >= 1,
+              p25.locator('#detailFlightBody').inner_text()[:60])
+        p25.locator('#detailClose').click()
+        p25.wait_for_timeout(200)
+    check('E2E-25 無 console/page error', len([x for x in e25 if '404' not in x]) == 0, e25[:2])
+    p25.close()
 
     # E2E-07 切航線保留設定 + 航班回退
     page.locator('#flightSel').select_option(label='航班 JX 800')
@@ -250,12 +357,9 @@ def run_tests(browser):
     # E2E-07c 航線有 trip 檔但全部載入失敗（全缺週）→ 空狀態；切範圍後仍保持空狀態
     # （回歸：此情境原本會渲染空網格圖表 =「沒資料但顯示圖表」，修正後必須顯示空狀態）
     p7c, e7c = new_page(browser, viewport={'width': 1280, 'height': 900})
-    kix_urls = ['api/trips/TPE-KIX/2026-08-15_2026-08-23.json',
-                'api/trips/TPE-KIX/2026-08-22_2026-08-30.json',
-                'api/trips/TPE-KIX/2026-08-29_2026-09-06.json',
-                'api/trips/TPE-KIX/2026-09-05_2026-09-13.json',
-                'api/trips/TPE-KIX/2026-09-12_2026-09-20.json']
+    kix_urls = [trip_url('TPE-KIX', i) for i in range(5)]
     idx7c = mock_index(trips=MOCK_TRIP_URLS + kix_urls)
+    nrt_map7c = mock_trip_map()
 
     def handler7c(route):
         url = route.request.url
@@ -264,12 +368,21 @@ def run_tests(browser):
                           body=json.dumps(idx7c, ensure_ascii=False))
         elif '/api/trips/' in url and 'TPE-KIX' in url:
             route.fulfill(status=404, body='not found')
+        elif '/api/trips/' in url:
+            # 東京以 mock 未來週供應（fixture 不再依賴 repo 內歷史資料）
+            key = 'api/' + url.split('/api/')[-1]
+            body = nrt_map7c.get(key)
+            if body is None:
+                route.fulfill(status=404, body='not found')
+            else:
+                route.fulfill(status=200, content_type='application/json',
+                              body=json.dumps(body, ensure_ascii=False))
         else:
             route.continue_()
 
     p7c.route('**/api/**', handler7c)
     p7c.goto(URL + '/web/')
-    wait_chart(p7c)  # 東京（真實 NRT 檔）正常顯示
+    wait_chart(p7c)  # 東京（mock 未來週）正常顯示
     p7c.locator('#routeTabs button[data-route="TPE-KIX"]').click()
     p7c.wait_for_selector('#emptyBox:not([hidden])', timeout=8000)
     check('E2E-07c trips 全缺 → 空狀態', p7c.locator('#emptyBox').is_visible())
@@ -277,7 +390,8 @@ def run_tests(browser):
         'el => el.hasAttribute("hidden") && getComputedStyle(el).display === "none"'))
     check('E2E-07c 空狀態下 Summary 隱藏', p7c.locator('#summary').evaluate('el => el.hidden'))
     # 切範圍後仍保持空狀態（回歸：不再復現空網格圖表）
-    p7c.locator('#rangeSeg button[data-range="6m"]').click()
+    # 註：RANGES 現僅保留「全部」，故以 all 按鈕重跑範圍變更流程（仍會觸發重繪）。
+    p7c.locator('#rangeSeg button[data-range="all"]').click()
     p7c.wait_for_timeout(400)
     check('E2E-07c 切範圍後仍空狀態且圖表隱藏',
           p7c.locator('#emptyBox').is_visible() and
@@ -309,7 +423,7 @@ def run_tests(browser):
     mob, merrs = new_page(browser, viewport={'width': 375, 'height': 800})
     mob.goto(URL + '/web/')
     wait_chart(mob)
-    h = mob.locator('select.sel').evaluate('el => Math.round(el.getBoundingClientRect().height)')
+    h = mob.locator('#flightSel').evaluate('el => Math.round(el.getBoundingClientRect().height)')
     check('E2E-15 mobile select 高度 44px', h == 44, f'got {h}px')
     check('E2E-15 圖表可橫向捲動', mob.locator('.chart-wrap').evaluate(
         'el => getComputedStyle(el).overflowX') == 'auto')
@@ -365,11 +479,26 @@ def run_tests(browser):
     """)
     p8b.goto(URL + '/web/')
     p8b.wait_for_selector('#errBox:not([hidden])', timeout=8000)
-    p8b.locator('#retryBtn').click()
-    p8b.wait_for_selector('#errBox:not([hidden])', timeout=8000)
-    p8b.locator('#retryBtn').click()
-    p8b.wait_for_selector('#errBox:not([hidden])', timeout=8000)
-    check('E2E-08b 重試不堆疊 listener', req8b['n'] == 3, f'got {req8b["n"]}')
+
+    def click_retry_and_wait(req, expected):
+        """點重試並等 index 請求數到達 expected（避免依賴固定 sleep）。"""
+        p8b.locator('#retryBtn').click()
+        for _ in range(80):
+            if req['n'] >= expected:
+                break
+            p8b.wait_for_timeout(100)
+
+    # 真因（已驗證）：本機伺服器為 HTTP/1.0（SimpleHTTPRequestHandler 預設 protocol_version），
+    # Chromium 對 idempotent GET 會重送一次 → 單次載入可能出現 2 個 index 網路請求
+    # （window.fetch spy 只記到 1 次，伺服器/mitm 層看到 2 次）。故不可斷言絕對值 3，
+    # 改斷言「每次點重試恰好 +1 個 index 請求」——這才是「重試不堆疊 listener」的語意。
+    n0 = req8b['n']
+    check('E2E-08b 初始載入僅觸發 index 請求（1~2 次，含連線重送）', 1 <= n0 <= 2, f'got {n0}')
+    click_retry_and_wait(req8b, n0 + 1)
+    check('E2E-08b 第 1 次重試觸發 1 個 index 請求', req8b['n'] == n0 + 1, f'got {req8b["n"]} (初始 {n0})')
+    click_retry_and_wait(req8b, n0 + 2)
+    check('E2E-08b 第 2 次重試仍只觸發 1 個 index 請求（不堆疊）',
+          req8b['n'] == n0 + 2, f'got {req8b["n"]} (初始 {n0})')
     ael = p8b.evaluate('window.__ael')
     check('E2E-08b 重跑 init 不重複綁定（各控件 listener 仍為 1）',
           ael.get('routeTabs.click') == 1 and ael.get('rangeSeg.click') == 1 and
@@ -388,15 +517,16 @@ def run_tests(browser):
     p8c.locator('#retryBtn').click()
     p8c.wait_for_selector('#chart path.price-line', timeout=8000)
     check('E2E-08c 重試成功載入圖表', p8c.locator('#chart path.price-line').count() == 1)
-    check('E2E-08c 重試後互動正常', '顯示 3 個月' in p8c.locator('#chartTitle').inner_text())
+    check('E2E-08c 重試後互動正常', '顯示 全部' in p8c.locator('#chartTitle').inner_text(),
+          p8c.locator('#chartTitle').inner_text())
     # 註：首次 500 的 console error 屬預期，故不檢查
     p8c.close()
 
     # E2E-11 過舊警示（15 天前）
     import datetime
-    old = (datetime.datetime.utcnow() - datetime.timedelta(days=15)).strftime('%Y-%m-%dT12:00:00.000Z')
+    old = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=15)).strftime('%Y-%m-%dT12:00:00.000Z')
     p11, e11 = new_page(browser, viewport={'width': 1280, 'height': 900})
-    route_mock_api(p11, index=mock_index(generated_at=old))
+    route_mock_api(p11, index=mock_index(generated_at=old), trips='mock')
     p11.goto(URL + '/web/')
     wait_chart(p11)
     check('E2E-11 過舊警示顯示', p11.locator('#staleBar').is_visible())
@@ -418,7 +548,7 @@ def run_tests(browser):
 
     # E2E-09 缺資料週（mock 5 週，缺第 3 週 → gap-dot，兩側仍有連續點）
     p9, e9 = new_page(browser, viewport={'width': 1280, 'height': 900})
-    route_mock_api(p9, index=mock_index(), missing_url='TPE-NRT/2026-08-29_2026-09-06.json')
+    route_mock_api(p9, index=mock_index(), missing_url=MOCK_TRIP_URLS[2], trips='mock')
     p9.goto(URL + '/web/')
     p9.wait_for_selector('#chart path.price-line', state='attached', timeout=8000)
     p9.wait_for_timeout(300)
@@ -437,17 +567,17 @@ def run_tests(browser):
     # E2E-05b XSS 防護：航班號含 HTML（引號突圍）不注入
     p5b, e5b = new_page(browser, viewport={'width': 1280, 'height': 900})
     evil = 'x"><img src=x onerror="window.__xss__=1">'
-    evil_trip = mock_trip('2026-08-15', '2026-08-23', [(evil, 32296, 'Available')])
-    evil_trip2 = mock_trip('2026-08-22', '2026-08-30', [('JX 802', 46072, 'Available')])
-    urls5 = ['api/trips/TPE-NRT/2026-08-15_2026-08-23.json',
-             'api/trips/TPE-NRT/2026-08-22_2026-08-30.json']
+    evil_trip = mock_trip(MOCK_WEEK_DATES[0][0], MOCK_WEEK_DATES[0][1], [(evil, 32296, 'Available')])
+    evil_trip2 = mock_trip(MOCK_WEEK_DATES[1][0], MOCK_WEEK_DATES[1][1], [('JX 802', 46072, 'Available')])
+    urls5 = MOCK_TRIP_URLS[:2]
     idx5 = mock_index(trips=urls5)
     def handler5(route):
         url = route.request.url
         if '/api/index.json' in url:
             route.fulfill(status=200, content_type='application/json', body=json.dumps(idx5, ensure_ascii=False))
         elif '/api/trips/' in url:
-            body = evil_trip if url.endswith('TPE-NRT/2026-08-15_2026-08-23.json') else evil_trip2
+            key = 'api/' + url.split('/api/')[-1]
+            body = evil_trip if key == urls5[0] else evil_trip2
             route.fulfill(status=200, content_type='application/json', body=json.dumps(body, ensure_ascii=False))
         else:
             route.continue_()

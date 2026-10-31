@@ -8,7 +8,8 @@ window.PriceModal = (function () {
   'use strict';
 
   function createModal(state, deps) {
-    const CACHE = deps.CACHE;
+    // 延遲讀取：app.js 首載後才賦值 CACHE（getter 注入，勿在建立時快取）
+    const getCache = () => deps.CACHE;
     const routeCache = deps.routeCache;
     const PriceAgg = deps.PriceAgg;
     const DOM_REFS = deps.DOM_REFS;
@@ -51,6 +52,7 @@ window.PriceModal = (function () {
      * 從 CACHE.units 中聚合指定 outbound_date 的歷史走勢資料。
      */
     function aggregateHistory(outboundDate, routeId) {
+      const CACHE = getCache();
       if (!CACHE || !CACHE.units) return [];
       const pat = '/' + routeId + '/';
       for (const [url, rec] of Object.entries(CACHE.units)) {
@@ -91,6 +93,7 @@ window.PriceModal = (function () {
      * 從 CACHE.units 取得該 week 的原始航班列表（含售罄）。
      */
     function getRawFlightsForWeek(week) {
+      const CACHE = getCache();
       if (!CACHE || !CACHE.units || !week.d) return [];
       const pat = '/' + state.route + '/';
       for (const [url, rec] of Object.entries(CACHE.units)) {

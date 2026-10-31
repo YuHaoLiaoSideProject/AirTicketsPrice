@@ -177,7 +177,7 @@
   let CACHE = null;             // { meta, units } 記憶體投影（app.js 與圖表之間唯一快取視圖）
   // ═══════════════ 詳情 Modal（003-ccard-detail） ═══════════════
   const modal = PriceModal.createModal(state, {
-    CACHE: null,    // 首次載入後由 app.js 設定
+    get CACHE() { return CACHE; },    // 延遲讀取（同 :669 cacheRef 模式）；app.js 各處賦值 CACHE 後 modal 均可讀到最新值
     routeCache,
     PriceAgg: window.PriceAgg,
     DOM_REFS: {
@@ -713,9 +713,12 @@
   const SVG_ARROW_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
   const SVG_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
 
+  // 渲染過濾後的週（min !== null），供 bindCcardClicks 對位卡片 idx（S1：勿用未過濾的 getCurrentVisible 對位）
+  let cardWeeks = [];
   function renderChangeCards(visible) {
     // 有價格的週都顯示（無比較基準時顯示「首次抓取」）
     const rows = visible.filter(w => w.min !== null);
+    cardWeeks = rows;
     if (rows.length === 0) {
       changeTableWrap.hidden = true;
       return;
@@ -749,9 +752,8 @@
   // ═══════════════ ccard Click Handler（003-ccard-detail） ═══════════════
   function bindCcardClicks() {
     const ccards = changeTableEl.querySelectorAll('.ccard');
-    const visible = modal.getCurrentVisible();
     ccards.forEach((card, idx) => {
-      const week = visible[idx];
+      const week = cardWeeks[idx];   // 與渲染時的過濾列同源，避免 min===null 週造成錯位
       if (!week) return;
       card.addEventListener('click', () => modal.openDetail(week, card));
       card.style.cursor = 'pointer';
