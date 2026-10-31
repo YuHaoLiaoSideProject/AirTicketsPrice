@@ -20,6 +20,8 @@ ROUTES_OTHER = [
     {"route_id": "TPE-PUS", "origin": "TPE", "destination": "PUS"},  # 釜山
     {"route_id": "TPE-SGN", "origin": "TPE", "destination": "SGN"},  # 胡志明市
     {"route_id": "TPE-BKK", "origin": "TPE", "destination": "BKK"},  # 曼谷素萬那普
+    {"route_id": "TPE-SIN", "origin": "TPE", "destination": "SIN"},  # 新加坡樟宜
+    {"route_id": "TPE-KUL", "origin": "TPE", "destination": "KUL"},  # 吉隆坡
 ]
 
 # 向後相容：全航線 = 日本 + 非日本

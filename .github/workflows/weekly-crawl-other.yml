@@ -21,6 +21,8 @@ on:
           - TPE-PUS
           - TPE-SGN
           - TPE-BKK
+          - TPE-SIN
+          - TPE-KUL
 
 jobs:
   crawl:

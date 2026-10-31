@@ -103,12 +103,12 @@ python -m http.server 8000
 
 | 參數 | 說明 | 預設 |
 |------|------|------|
-| `ROUTES` | 追蹤的航線 | TPE-NRT（東京）、TPE-KIX（大阪）、TPE-FUK（福岡）、TPE-CTS（札幌）、TPE-NGO（名古屋）、TPE-PUS（釜山）、TPE-SGN（胡志明） |
+| `ROUTES` | 追蹤的航線 | TPE-NRT（東京）、TPE-KIX（大阪）、TPE-FUK（福岡）、TPE-CTS（札幌）、TPE-NGO（名古屋）、TPE-OKA（沖繩）、TPE-PUS（釜山）、TPE-SGN（胡志明）、TPE-BKK（曼谷）、TPE-SIN（新加坡）、TPE-KUL（吉隆坡） |
 | `NUM_WEEKS` | 查詢未來幾週 | 40 |
 | `RETURN_AFTER_DAYS` | 回程 = 去程 + 天數（下週日） | 8 |
 | `CABIN` | 艙等 | eco |
 
-**可用航線**（星宇直飛）：TPE-NRT 東京 / TPE-KIX 大阪 / TPE-FUK 福岡 / TPE-CTS 札幌 / TPE-NGO 名古屋 / TPE-PUS 釜山 / TPE-SGN 胡志明
+**可用航線**（星宇直飛）：TPE-NRT 東京 / TPE-KIX 大阪 / TPE-FUK 福岡 / TPE-CTS 札幌 / TPE-NGO 名古屋 / TPE-OKA 沖繩 / TPE-PUS 釜山 / TPE-SGN 胡志明 / TPE-BKK 曼谷 / TPE-SIN 新加坡 / TPE-KUL 吉隆坡
 
 想加航線就在 `ROUTES` 加一行：
 

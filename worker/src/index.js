@@ -22,7 +22,7 @@
 import { buildRequest, signVapidJwt, base64urlToBytes } from './vapid.mjs';
 
 /* ── 常數（§1.4 / D4 / D6）── */
-export const ROUTE_NAMES = { 'TPE-NRT': '東京', 'TPE-KIX': '大阪', 'TPE-FUK': '福岡', 'TPE-CTS': '札幌' };
+export const ROUTE_NAMES = { 'TPE-NRT': '東京', 'TPE-KIX': '大阪', 'TPE-FUK': '福岡', 'TPE-CTS': '札幌', 'TPE-NGO': '名古屋', 'TPE-OKA': '沖繩', 'TPE-PUS': '釜山', 'TPE-SGN': '胡志明', 'TPE-BKK': '曼谷', 'TPE-SIN': '新加坡', 'TPE-KUL': '吉隆坡' };
 export const MAX_DROPS = 3;        // D4：摘要最多 3 條（爬蟲已選 top-3，Worker 防禦性再 slice）
 export const SUB_PREFIX = 'sub:';  // KV key = sub:{endpoint}（HDL-10：以 endpoint 為裝置單位）
 export const MAX_SUBS = 1000;      // D6：KV 防陌生人灌爆上限（超出 → 400 拒絕寫入）
