@@ -1,0 +1,440 @@
+{
+  "generated_at": "2026-10-31T09:27:04.000Z",
+  "source": "flightmapper",
+  "airline_code": "CI",
+  "airline_name": "China Airlines",
+  "reference_date": "2026-10-31",
+  "request_count": 2,
+  "days_unverified": true,
+  "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。",
+  "routes": [
+    {
+      "route_id": "TPE-NRT",
+      "origin": "TPE",
+      "destination": "NRT",
+      "source_url": "https://info.flightmapper.net/route/China_Airlines_CI_TPE_NRT",
+      "flights": [
+        {
+          "flight_number": "CI100",
+          "origin": "TPE",
+          "destination": "NRT",
+          "departure_time": "09:30",
+          "arrival_time": "13:30",
+          "aircraft": [
+            "Airbus A330-300 (333)",
+            "Airbus A350-900 (359)",
+            "Boeing 777-300ER (77W)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "is_daily": true,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Sun"
+              ],
+              "departure_time": "09:30",
+              "arrival_time": "13:30",
+              "aircraft": "Airbus A330-300 (333)"
+            },
+            {
+              "effective_from": "2026-10-29",
+              "effective_to": null,
+              "days_of_operation": [
+                "Thu"
+              ],
+              "departure_time": "09:30",
+              "arrival_time": "13:30",
+              "aircraft": "Airbus A350-900 (359)"
+            },
+            {
+              "effective_from": "2026-10-30",
+              "effective_to": null,
+              "days_of_operation": [
+                "Fri",
+                "Sat"
+              ],
+              "departure_time": "09:30",
+              "arrival_time": "13:30",
+              "aircraft": "Boeing 777-300ER (77W)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        },
+        {
+          "flight_number": "CI104",
+          "origin": "TPE",
+          "destination": "NRT",
+          "departure_time": "12:35",
+          "arrival_time": "16:35",
+          "aircraft": [
+            "Airbus A321neo (32Q)",
+            "Boeing 777-300ER (77W)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sun"
+          ],
+          "is_daily": false,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Wed",
+                "Fri",
+                "Sun"
+              ],
+              "departure_time": "12:35",
+              "arrival_time": "16:35",
+              "aircraft": "Airbus A321neo (32Q)"
+            },
+            {
+              "effective_from": "2026-10-27",
+              "effective_to": null,
+              "days_of_operation": [
+                "Tue",
+                "Thu"
+              ],
+              "departure_time": "12:35",
+              "arrival_time": "16:35",
+              "aircraft": "Boeing 777-300ER (77W)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        },
+        {
+          "flight_number": "CI108",
+          "origin": "TPE",
+          "destination": "NRT",
+          "departure_time": "14:25",
+          "arrival_time": "18:30",
+          "aircraft": [
+            "Airbus A321neo (32Q)",
+            "Airbus A330-300 (333)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "is_daily": true,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Wed",
+                "Fri",
+                "Sat",
+                "Sun"
+              ],
+              "departure_time": "14:25",
+              "arrival_time": "18:30",
+              "aircraft": "Airbus A321neo (32Q)"
+            },
+            {
+              "effective_from": "2026-10-27",
+              "effective_to": null,
+              "days_of_operation": [
+                "Tue",
+                "Thu"
+              ],
+              "departure_time": "14:25",
+              "arrival_time": "18:30",
+              "aircraft": "Airbus A330-300 (333)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        },
+        {
+          "flight_number": "CI106",
+          "origin": "TPE",
+          "destination": "NRT",
+          "departure_time": "16:25",
+          "arrival_time": "20:30",
+          "aircraft": [
+            "Airbus A321neo (32Q)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "is_daily": true,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri",
+                "Sat",
+                "Sun"
+              ],
+              "departure_time": "16:25",
+              "arrival_time": "20:30",
+              "aircraft": "Airbus A321neo (32Q)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        }
+      ]
+    },
+    {
+      "route_id": "NRT-TPE",
+      "origin": "NRT",
+      "destination": "TPE",
+      "source_url": "https://info.flightmapper.net/route/China_Airlines_CI_NRT_TPE",
+      "flights": [
+        {
+          "flight_number": "CI107",
+          "origin": "NRT",
+          "destination": "TPE",
+          "departure_time": "09:20",
+          "arrival_time": "12:30",
+          "aircraft": [
+            "Airbus A321neo (32Q)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "is_daily": true,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri",
+                "Sat",
+                "Sun"
+              ],
+              "departure_time": "09:20",
+              "arrival_time": "12:30",
+              "aircraft": "Airbus A321neo (32Q)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        },
+        {
+          "flight_number": "CI101",
+          "origin": "NRT",
+          "destination": "TPE",
+          "departure_time": "14:35",
+          "arrival_time": "17:45",
+          "aircraft": [
+            "Airbus A330-300 (333)",
+            "Airbus A350-900 (359)",
+            "Boeing 777-300ER (77W)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "is_daily": true,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Sun"
+              ],
+              "departure_time": "14:35",
+              "arrival_time": "17:45",
+              "aircraft": "Airbus A330-300 (333)"
+            },
+            {
+              "effective_from": "2026-10-29",
+              "effective_to": null,
+              "days_of_operation": [
+                "Thu"
+              ],
+              "departure_time": "14:35",
+              "arrival_time": "17:45",
+              "aircraft": "Airbus A350-900 (359)"
+            },
+            {
+              "effective_from": "2026-10-30",
+              "effective_to": null,
+              "days_of_operation": [
+                "Fri",
+                "Sat"
+              ],
+              "departure_time": "14:35",
+              "arrival_time": "17:45",
+              "aircraft": "Boeing 777-300ER (77W)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        },
+        {
+          "flight_number": "CI105",
+          "origin": "NRT",
+          "destination": "TPE",
+          "departure_time": "17:45",
+          "arrival_time": "20:55",
+          "aircraft": [
+            "Airbus A321neo (32Q)",
+            "Boeing 777-300ER (77W)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sun"
+          ],
+          "is_daily": false,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Wed",
+                "Fri",
+                "Sun"
+              ],
+              "departure_time": "17:45",
+              "arrival_time": "20:55",
+              "aircraft": "Airbus A321neo (32Q)"
+            },
+            {
+              "effective_from": "2026-10-27",
+              "effective_to": null,
+              "days_of_operation": [
+                "Tue",
+                "Thu"
+              ],
+              "departure_time": "17:45",
+              "arrival_time": "20:55",
+              "aircraft": "Boeing 777-300ER (77W)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        },
+        {
+          "flight_number": "CI109",
+          "origin": "NRT",
+          "destination": "TPE",
+          "departure_time": "19:30",
+          "arrival_time": "22:45",
+          "aircraft": [
+            "Airbus A321neo (32Q)",
+            "Airbus A330-300 (333)"
+          ],
+          "days_of_operation": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ],
+          "is_daily": true,
+          "effective_from": "2026-10-25",
+          "effective_to": null,
+          "segments": [
+            {
+              "effective_from": "2026-10-25",
+              "effective_to": null,
+              "days_of_operation": [
+                "Mon",
+                "Wed",
+                "Fri",
+                "Sat",
+                "Sun"
+              ],
+              "departure_time": "19:30",
+              "arrival_time": "22:45",
+              "aircraft": "Airbus A321neo (32Q)"
+            },
+            {
+              "effective_from": "2026-10-27",
+              "effective_to": null,
+              "days_of_operation": [
+                "Tue",
+                "Thu"
+              ],
+              "departure_time": "19:30",
+              "arrival_time": "22:45",
+              "aircraft": "Airbus A330-300 (333)"
+            }
+          ],
+          "days_unverified": true,
+          "unverified_reason": "營運日只來自單一來源 FlightMapper，未經第二來源交叉驗證。該來源已知會缺筆：CI104 / CI105 冬季營運日缺 Sat，但桃園機場官方 FIDS 於 2026-10-31（週六）實證 CI104 確實有飛（OTime 12:35、RTime 12:42、Gate D5），營運日實為每日。其他航班也可能有尚未發現的缺筆，因此 days_of_operation 僅供參考，不可視為完整或已確認的清單。"
+        }
+      ]
+    }
+  ]
+}
