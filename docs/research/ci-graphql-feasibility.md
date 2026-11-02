@@ -91,8 +91,12 @@ Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXUyJ9.eyJleHAiOjE3OTM1NDkxNjUsImlhdCI6...<
 **em-api-key**（64 chars）：
 
 ```
-HeQpRjsFI5xlAaSx2onkjc1HTK0ukqA1IrVvd5fvaMhNtzLTxInTpeYB1MK93pah  → 文件內一律遮罩為 HeQp…3pah
+<REDACTED>  → 文件內一律遮罩為 HeQp…3pah
 ```
+
+> 註：**實際值不在 repo 內重現**。此 key 是站方公開發給任何訪客的 site key（64 chars、會輪替、非登入態、不含使用者身分），
+> 但它仍是憑證類字串，故以 `<REDACTED>` 佔位。可重現性不受影響：取得方式見下方 `curl` 與 §4 的 JS/Python 片段
+> （`GET` 首頁 → `__NEXT_DATA__` 的 `"em-api-key"` 欄位，每次執行重取，見 R2）。
 
 兩者在 `page.on('response')` 攔 `vg-api` 時看得到；**但更省事的是它們本來就寫在首頁 HTML 裡**：
 

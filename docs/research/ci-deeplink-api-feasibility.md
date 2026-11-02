@@ -131,8 +131,8 @@ x-d-token: <從瀏覽器取得的 DataDome token，1246 字元>
 x-incap-spa-info: <visid_incap_2933525=…; incap_ses_724_2933525=…>
 cookie: <瀏覽器 cookie jar（含 reese84 / datadome / visid_incap / incap_ses）>
 
-client_id=r7UuPcZTW4PK5XWFt2swQtoSC1HBGhxc
-&client_secret=7il3cPVgbyttXH3a
+client_id=<REDACTED>          # 32 chars，前端公開；遮罩形式 r7Uu…Ghxc
+&client_secret=<REDACTED>     # 前端明碼，會隨站方改版輪替
 &fact=<URL-encoded JSON: {"keyValuePairs":[{"key":"originLocationCode1","value":"TPE"},…]}>
 &grant_type=client_credentials
 ```
@@ -145,7 +145,7 @@ client_id=r7UuPcZTW4PK5XWFt2swQtoSC1HBGhxc
  "token_type":"Bearer","access_token":"eyJhbGciOiJSUzI1NiIs…"}
 ```
 
-> `client_id` / `client_secret` **就是前端明碼**（頁面 JS 直接送出），不需要帳號。`fact` 的 `keyValuePairs` 由**我自己組**（實測換日期仍 200），內容含 `pointOfSale=SEA`、`officeId=TPECI08AB`、`device=SITE-DESKTOP-EVERYMUNDO-SEA/TW`、`ip`、`originLocationCode1/2`、`departureDateTime1/2`。
+> `client_id` / `client_secret` **就是前端明碼**（頁面 JS 直接送出），不需要帳號；**本文不重現實際值**（皆為站方公開、會輪替、非登入態的 client credentials，取得方式：於 `des-portal.china-airlines.com` 頁面 JS 或 ① 請求的 form body 取得）。`fact` 的 `keyValuePairs` 由**我自己組**（實測換日期仍 200），內容含 `pointOfSale=SEA`、`officeId=TPECI08AB`、`device=SITE-DESKTOP-EVERYMUNDO-SEA/TW`、`ip`、`originLocationCode1/2`、`departureDateTime1/2`。
 
 **② 查逐班票價**
 
