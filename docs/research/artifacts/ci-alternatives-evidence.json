@@ -1,0 +1,342 @@
+{
+ "b_requests": [
+  {
+   "tag": "B1_GET_portal_root_plain",
+   "status": 200,
+   "url": "https://bookingPortal.china-airlines.com/maintain/page-400.html",
+   "reason": "OK",
+   "headers": {
+    "Cache-Control": "no-store, no-cache",
+    "Pragma": "no-cache",
+    "Content-Type": "text/html",
+    "Last-Modified": "Thu, 16 Apr 2026 11:22:56 GMT",
+    "Accept-Ranges": "bytes",
+    "ETag": "\"8eca7b5f93cddc1:0\"",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'Self' http://*.china-airlines.com https://*.china-airlines.com",
+    "X-Akamai-Transformed": "0 - 0 -",
+    "Date": "Sat, 31 Oct 2026 03:36:30 GMT",
+    "Content-Length": "3892",
+    "Connection": "keep-alive",
+    "Set-Cookie": "CCNETsession=608044810.47873.0000; expires=Sat, 31-Oct-2026 …(trimmed)",
+    "Strict-Transport-Security": "max-age=31536000 ; includeSubDomains ; preload"
+   },
+   "body_len": 3892,
+   "body_head": "<!doctype html>\n<html>\n  <head>\n    <title>Not Found</title>…(trimmed)"
+  },
+  {
+   "tag": "B2_POST_search_plain",
+   "status": 403,
+   "url": "https://bookingportal.china-airlines.com/eRetailPortal/Booking.svc/Booking/Search",
+   "reason": "Forbidden",
+   "headers": {
+    "Server": "AkamaiGHost",
+    "Mime-Version": "1.0",
+    "Content-Type": "text/html",
+    "Content-Length": "444",
+    "Expires": "Sat, 31 Oct 2026 03:36:34 GMT",
+    "Date": "Sat, 31 Oct 2026 03:36:34 GMT",
+    "Connection": "close",
+    "Strict-Transport-Security": "max-age=31536000 ; includeSubDomains ; preload",
+    "Set-Cookie": "_abck=A337F439299468F092B3B26AB2A92F51~-1~YAAQsT7cPcpuWIOhAQ…(trimmed)"
+   },
+   "body_len": 444,
+   "body_head": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>…(trimmed)"
+  },
+  {
+   "tag": "B3_POST_search_headers",
+   "status": 403,
+   "url": "https://bookingportal.china-airlines.com/eRetailPortal/Booking.svc/Booking/Search",
+   "reason": "Forbidden",
+   "headers": {
+    "Server": "AkamaiGHost",
+    "Mime-Version": "1.0",
+    "Content-Type": "text/html",
+    "Content-Length": "444",
+    "Expires": "Sat, 31 Oct 2026 03:36:37 GMT",
+    "Date": "Sat, 31 Oct 2026 03:36:37 GMT",
+    "Connection": "close",
+    "Strict-Transport-Security": "max-age=31536000 ; includeSubDomains ; preload",
+    "Set-Cookie": "_abck=3DAFC679C966F5A44488F7F818929A05~-1~YAAQsT7cPRFvWIOhAQ…(trimmed)"
+   },
+   "body_len": 444,
+   "body_head": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>…(trimmed)"
+  },
+  {
+   "tag": "B4_GET_flights_home",
+   "status": 200,
+   "url": "https://flights.china-airlines.com/zh-tw/flights",
+   "reason": "OK",
+   "headers": {
+    "Date": "Sat, 31 Oct 2026 03:36:42 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "keep-alive",
+    "CF-Ray": "a52f9def29568094-TPE",
+    "CF-Cache-Status": "HIT",
+    "Age": "41435",
+    "Cache-Control": "public, max-age=86400",
+    "x-amzn-trace-id": "Root=1-6ae4c06d-6f39e494781d814c7dd0e50b",
+    "Expires": "Sun, 01 Nov 2026 03:36:42 GMT",
+    "Link": "<https://assets.airtrfx.com/media-em/ci/airline/homepage.jpg?height=500&quality=85&format=auto&opt=true>; rel=preload; as=image",
+    "Server": "cloudflare",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "Vary": "accept-encoding",
+    "Content-Security-Policy": "upgrade-insecure-requests",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "X-Content-Type-Options": "nosniff",
+    "X-Expires": "Sat, 31 Oct 2026 16:06:06 GMT",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Xss-Protection": "1; mode=block",
+    "device": "desktop",
+    "x-amz-apigw-id": "GEMBJHQ4HUYFcqQ=",
+    "x-amzn-remapped-content-length": "1568427",
+    "x-amzn-requestid": "042bcd42-62f9-40ad-aa5e-c2837db77158",
+    "Content-Encoding": "gzip",
+    "alt-svc": "h3=\":443\"; ma=86400"
+   },
+   "body_len": 1533869,
+   "body_head": "<!DOCTYPE html><html lang=\"zh-TW\" class=\"overflow-x-hidden\">…(trimmed)"
+  },
+  {
+   "tag": "B5_GET_www_home",
+   "status": 200,
+   "url": "https://www.china-airlines.com/tw/zh",
+   "reason": "OK",
+   "headers": {
+    "Content-Type": "text/html; charset=utf-8",
+    "x-locale": "tw/zh",
+    "x-pathname": "/tw/zh/index.html",
+    "x-middleware-rewrite": "/tw/zh/index.html",
+    "X-Akamai-Transformed": "0 - 0 -",
+    "Content-Encoding": "gzip",
+    "Expires": "Sat, 31 Oct 2026 03:36:45 GMT",
+    "Cache-Control": "max-age=0, no-cache, no-store",
+    "Pragma": "no-cache",
+    "Date": "Sat, 31 Oct 2026 03:36:45 GMT",
+    "Transfer-Encoding": "chunked",
+    "Connection": "keep-alive, Transfer-Encoding",
+    "Vary": "Accept-Encoding",
+    "Strict-Transport-Security": "max-age=31536000 ; includeSubDomains ; preload",
+    "x-queueit-connector": "akamai",
+    "Set-Cookie": "_abck=B8DCC07E7F28AB1DCE6C613861D248B2~-1~YAAQByYHYLf3aYKhAQ…(trimmed)"
+   },
+   "body_len": 1043529,
+   "body_head": "<!DOCTYPE html><html lang=\"zh-TW\"><head><meta charSet=\"utf-8…(trimmed)"
+  }
+ ],
+ "get_vs_post": [
+  {
+   "tag": "B6_GET_search_path",
+   "status": 405,
+   "headers": {
+    "Cache-Control": "no-store, no-cache",
+    "Pragma": "no-cache",
+    "Allow": "POST",
+    "Content-Type": "text/html; charset=UTF-8",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'Self' http://*.china-airlines.com https://*.china-airlines.com",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Akamai-Transformed": "0 - 0 -",
+    "Date": "Sat, 31 Oct 2026 03:37:01 GMT",
+    "Connection": "close",
+    "Set-Cookie": "ASP.NET_SessionId=4sv4ztdnb0kry2vacwmymxan; path=/; secure; …(trimmed)",
+    "Strict-Transport-Security": "max-age=31536000 ; includeSubDomains ; preload"
+   },
+   "body": "﻿<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<!DOCTYPE html PUBL…(trimmed)"
+  },
+  {
+   "tag": "A4_flightmapper_nrt_tpe",
+   "status": 200,
+   "len": 152209
+  }
+ ],
+ "browser": {
+  "A_root": {
+   "status": 200,
+   "url": "https://bookingportal.china-airlines.com/maintain/page-400.html",
+   "title": "Not Found"
+  },
+  "abck_after_root": {
+   "domain": ".china-airlines.com",
+   "segs": [
+    "DDC42CC7CC27C8D19DE32C9AF0B3893D",
+    "-1",
+    "YAAQsT7cPfByWIOhAQAARLsIkBB1PJplFxopg3WmJlPQHKvvdhn0NvWbdJ3Pg+S8xYFRmbfLGUDDEqPkYo9LWM4/GZmFDGW7dM78Vi4zLYTrbCL/UT+wHxvPwMsms1KfbHphz+UHFwFPtrBOMv5emekoPBSoQAFPd+s8aVIK0PUcIWml90RD580WNMe0OHjjKS7n7KoytGN5w7GdnXP9IDXKMp4t8Yed9wYI67nqmD4C8wEOjkhyPPfLBDyaaD1esB6xTR+LSW4efMPYiHatq/2bBA4YbH0I+cTbd5tewy7DGLhc8tqImcHtxE11dBoTvZ767WxVyhD1ke7BkLwQIsxjO5IG61/o42INilh6vcRxuvyEpx5t7jbplDp5aBVtabgLQ0/IAQ/sfaMxiPYIOYwT6QocQC4xRVrHsp1CS92LsQ1dB7NDiGRE2cz3vz2J8kr6l28fQgM8il4FPcOMgFhEv8Df5Dqt0O/RXnIQ/fJHtLJkwseqAeXMPTkGSJZrSf3PbLPHpEJTZso5E4Ru0tQ6Q0F0haHI481fQ/dXNmaXlE11cakUR4I8TFPhHZ6jwwPw0ZYl/cNdMnU3Ad3QbVXnE7x2Dy0V",
+    "-1"
+   ],
+   "len": 783
+  },
+  "cookies": {
+   "CCNETsession": {
+    "domain": "bookingportal.china-airlines.com",
+    "segments": "n/a",
+    "len": 20
+   },
+   "bm_sv": {
+    "domain": ".china-airlines.com",
+    "segments": [
+     "D18AB0E276D57164E131BC1865CA7273",
+     "YAAQsT7cPVRyWIOhAQAAXqUIkAH3ZgF+vnRFzwQrrf9ZN/rtSdIRXzlNotIcyaRVBh9hLmkgcXWLHR/VLICOwfOURw65/6seqTQNvngOc5W7e9eoZ3ipme7J1nR84MIK73tPE9N7wZRqPMWBl4SKvS5sWrF+XvHhE3d5Vpyjp/bTLy3GkH2MI322pdAykT4brzKDauDjpp3++gdpG1Bpj3QdMrN86Pc5kBn+xT7+ZFqBqYQYULed2XIRWOgHkfbhTKkV8FRLLYk=",
+     "1"
+    ],
+    "len": 303
+   },
+   "bm_sz": {
+    "domain": ".china-airlines.com",
+    "segments": [
+     "5B9D9CE02E76A4D79B09A369872B49B7",
+     "YAAQsT7cPVVyWIOhAQAAXqUIkAEeyLMXrIoSfeghzUztRpDGMSYcdx1L+9dOFV3yHK90q5uu1ZpkRk7WL+38HIsUPg6V3gO2d2rsLPVeRYQhpcS8TOJWt3Pu05HNSHTEHfCPvHWRfj/W2yZSGsP4Y6QBTb/8Z32NBbGNCKQtqcC7J1dGbsenuFrZ98ASs1FQXTpFYv32lD6z4lRBuJtYHfzJDzg29YnL3tK+aNELd6FvOzWcf0DD0OopgGGs1ssNisLI8oQye6ACVBsvYiwsKhzHpiX1al7/8icfbOJm8RAmBGKLq5nXyzArjMd83FmQjRKCymFabyDKyusB+qgrMWricJzoP2tORRpIop3Lqr3YHfvuCzYsWMq6uTneLaOFBcxutsqsJFuIraJ3VBqvEQ==",
+     "3289913",
+     "4407601"
+    ],
+    "len": 457
+   },
+   "ak_bmsc": {
+    "domain": ".china-airlines.com",
+    "segments": [
+     "534C367915F981A9C1476C9A10D596C9",
+     "000000000000000000000000000000",
+     "YAAQsT7cPeVyWIOhAQAAb7gIkAE+SHadv2C8/c9k7H0ho0EoShRsKiLjgia4KTA/NgMy/u3pZ8bTw0HvodaYV1po4b6zQewjL9ASFqzPE4gl8OIYMV6lmy/8g+4CfTBqZ41dY5iDu4zG0quC4Wo8cnI9hXFtvfYPSY5fpOkDuWyLKY2WUVnTiIyBkGOahySFpw7mHj7YVnBmW3wRYKHRM+c+vizMNLAyChPzMkLEaUhK0av+R4bTWPo7atY19JgxB/wjj0jLWmECBjnPN8N0GpP7H077jczsbPyoU/0vq78HwCIjQuXlJa9kEIhpKs2LHkYdtX/JwtJrMQFoY+3nt+PPu94vSTBUSnHQBY0nFGLholb0Y0/zHRuDG8OBwRUu+/GNe/npTuzNs1okRzTILPKrBx03IrR8gazz5t/yHbvCBXzW5lfDtbIbaKt4InJ9S7qDOkHou5qs62388kiiT1aQA+txgQY1798EbYayn+g1IIvj3O2LBeoBBKb63FnvVCWh/S7UgL3e1oCUI/s6tS0VHqPTF92XuQzJr0QXhLP+7SNu"
+    ],
+    "len": 624
+   },
+   "_abck": {
+    "domain": ".china-airlines.com",
+    "segments": [
+     "DDC42CC7CC27C8D19DE32C9AF0B3893D",
+     "-1",
+     "YAAQsT7cPfByWIOhAQAARLsIkBB1PJplFxopg3WmJlPQHKvvdhn0NvWbdJ3Pg+S8xYFRmbfLGUDDEqPkYo9LWM4/GZmFDGW7dM78Vi4zLYTrbCL/UT+wHxvPwMsms1KfbHphz+UHFwFPtrBOMv5emekoPBSoQAFPd+s8aVIK0PUcIWml90RD580WNMe0OHjjKS7n7KoytGN5w7GdnXP9IDXKMp4t8Yed9wYI67nqmD4C8wEOjkhyPPfLBDyaaD1esB6xTR+LSW4efMPYiHatq/2bBA4YbH0I+cTbd5tewy7DGLhc8tqImcHtxE11dBoTvZ767WxVyhD1ke7BkLwQIsxjO5IG61/o42INilh6vcRxuvyEpx5t7jbplDp5aBVtabgLQ0/IAQ/sfaMxiPYIOYwT6QocQC4xRVrHsp1CS92LsQ1dB7NDiGRE2cz3vz2J8kr6l28fQgM8il4FPcOMgFhEv8Df5Dqt0O/RXnIQ/fJHtLJkwseqAeXMPTkGSJZrSf3PbLPHpEJTZso5E4Ru0tQ6Q0F0haHI481fQ/dXNmaXlE11cakUR4I8TFPhHZ6jwwPw0ZYl/cNdMnU3Ad3QbVXnE7x2Dy0V",
+     "-1"
+    ],
+    "len": 783
+   }
+  },
+  "B_fetch_post_sameorigin": {
+   "status": 403,
+   "type": "basic",
+   "len": 444,
+   "head": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>…(trimmed)"
+  },
+  "C_www": {
+   "status": 200,
+   "title": "首頁 - 中華航空"
+  },
+  "abck_after_www": {
+   "ak_bmsc": {
+    "domain": ".china-airlines.com",
+    "segs": [
+     "534C367915F981A9C1476C9A10D596C9",
+     "000000000000000000000000000000",
+     "YAAQsT7cPeVyWIOhAQAAb7gIkAE+SHadv2C8/c9k7H0ho0EoShRsKiLjgia4KTA/NgMy/u3pZ8bTw0HvodaYV1po4b6zQewjL9ASFqzPE4gl8OIYMV6lmy/8g+4CfTBqZ41dY5iDu4zG0quC4Wo8cnI9hXFtvfYPSY5fpOkDuWyLKY2WUVnTiIyBkGOahySFpw7mHj7YVnBmW3wRYKHRM+c+vizMNLAyChPzMkLEaUhK0av+R4bTWPo7atY19JgxB/wjj0jLWmECBjnPN8N0GpP7H077jczsbPyoU/0vq78HwCIjQuXlJa9kEIhpKs2LHkYdtX/JwtJrMQFoY+3nt+PPu94vSTBUSnHQBY0nFGLholb0Y0/zHRuDG8OBwRUu+/GNe/npTuzNs1okRzTILPKrBx03IrR8gazz5t/yHbvCBXzW5lfDtbIbaKt4InJ9S7qDOkHou5qs62388kiiT1aQA+txgQY1798EbYayn+g1IIvj3O2LBeoBBKb63FnvVCWh/S7UgL3e1oCUI/s6tS0VHqPTF92XuQzJr0QXhLP+7SNu"
+    ],
+    "len": 624
+   },
+   "_abck": {
+    "domain": ".china-airlines.com",
+    "segs": [
+     "DDC42CC7CC27C8D19DE32C9AF0B3893D",
+     "-1",
+     "YAAQByYHYAoKaoKhAQAAEt0IkBAT/GWoJyvyK8xVN5qhLbQ9/Se7Bq6PK1prU1/MJM4j+tfbx4/3iTHII/xPzlILoaS2CSu2O8CfYZ2CDjAPX82VuVFhzDC3FxC8It+n/OeChJCu4CfcRHpMa54DG480lsOXpS5Y+N/sisyjV/VMvqvCXR/fC7bCze+a9lXn0wCWiRKjDnxxoDU3P0bciZFG874UZQh2zY2IxhcdpnmFc7K3xwGgOjM0sMQT43NX9axyj9Wzwjxfyv+EoIazxjJNxFkUUqETlX3FxsjtCxvXOvvVEUeKGJ1grz74gbHb2EZL3M8/OL336mRE2raCmCxlu3P3k2cgymulcgTh1x6hqi2cvOfqGC6AGn14/GOOs12DKL+NMW0C9iiVIqm7OUJS9nvOKK1fDNfNTCo0LH2RDy+gOR0zmfiR5uLxvgvbzYI0q+tsP+tomfZ4SDqtb2iCRb+MnAdBnlys41Skb+3Ju4uF65SV7aMZP44a+bideSsHy8lnNFN3Y0OYgOkm2CyXsvUouB656QgVhfRerhGr6qmUgVXdG1KoDvMK4G6tr56EeE6E4SGRedQI9zei2vj6dQwaZvwP",
+     "-1"
+    ],
+    "len": 783
+   }
+  },
+  "D_form_post": {
+   "url": "https://bookingportal.china-airlines.com/eRetailPortal/Booki…(trimmed)",
+   "status_unknown": true,
+   "title": "Access Denied",
+   "has_access_denied": true,
+   "reference": "18.b13edc3d.1793417869.5ba537d",
+   "head": "<html><head> <title>Access Denied</title> </head><body> <h1>…(trimmed)"
+  },
+  "net": [
+   [
+    302,
+    "https://bookingportal.china-airlines.com/eRetailPortal/"
+   ],
+   [
+    403,
+    "https://bookingportal.china-airlines.com/eRetailPortal/Booking.svc/Booking/Search"
+   ],
+   [
+    204,
+    "https://analytics.google.com/g/collect?v=2&tid=G-GF3YT47MLJ&gtm=45je6as1v9204093363za20gzb76848968zd76848968xf1&_p=1793417863380&gcs=G1--&gcd=13l3l3R3"
+   ],
+   [
+    204,
+    "https://analytics.google.com/g/collect?v=2&tid=G-GF3YT47MLJ&gtm=45je6as1v9204093363za20gzb76848968zd76848968xf1&_p=1793417863380&gcs=G1--&gcd=13l3l3R3"
+   ],
+   [
+    403,
+    "https://bookingportal.china-airlines.com/eRetailPortal/Booking.svc/Booking/Search?_gl=1*1ycltki*_gcl_au*NTQ5NzI5OTg5LjE3OTM0MTc4NjQuLS4tLjE3OTM0MTc4Nj"
+   ]
+  ]
+ },
+ "scope_tests": [
+  {
+   "tag": "B7_POST_json_empty",
+   "method": "POST",
+   "url": "https://bookingportal.china-airlines.com/eRetailPortal/Booking.svc/Booking/Search",
+   "status": 403,
+   "server": "AkamaiGHost",
+   "allow": null,
+   "reference": null,
+   "body": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>…(trimmed)",
+   "headers": {
+    "Server": "AkamaiGHost",
+    "Mime-Version": "1.0",
+    "Content-Type": "text/html",
+    "Content-Length": "444",
+    "Expires": "Sat, 31 Oct 2026 03:38:12 GMT",
+    "Date": "Sat, 31 Oct 2026 03:38:12 GMT",
+    "Connection": "close",
+    "Strict-Transport-Security": "max-age=31536000 ; includeSubDomains ; preload",
+    "Set-Cookie": "_abck=83A5609719D2641F725AF225B3CFEC22~-1~YAAQsT7cPdR1WIOhAQ…(trimmed)"
+   }
+  },
+  {
+   "tag": "B8_POST_nonexistent_path",
+   "method": "POST",
+   "url": "https://bookingportal.china-airlines.com/eRetailPortal/Booking.svc/Booking/NoSuchMethodXYZ",
+   "status": 404,
+   "server": null,
+   "allow": null,
+   "reference": null,
+   "body": "﻿<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<!DOCTYPE html PUBL…(trimmed)",
+   "headers": {
+    "Cache-Control": "no-store, no-cache",
+    "Pragma": "no-cache",
+    "Content-Type": "text/html; charset=UTF-8",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'Self' http://*.china-airlines.com https://*.china-airlines.com",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Akamai-Transformed": "0 - 0 -",
+    "Date": "Sat, 31 Oct 2026 03:38:16 GMT",
+    "Content-Length": "2191",
+    "Connection": "close",
+    "Set-Cookie": "ASP.NET_SessionId=0ospwjhbak1cupftwscnjisy; path=/; secure; …(trimmed)",
+    "Strict-Transport-Security": "max-age=31536000 ; includeSubDomains ; preload"
+   }
+  }
+ ],
+ "alternate_entry": {
+  "pf_route_today": {
+   "status": 403,
+   "ct": "application/json",
+   "len": 21,
+   "head": "{\"error\":\"Forbidden\"}"
+  },
+  "official_post_no_token": {
+   "status": 200,
+   "len": 12716941,
+   "has_ci100": false,
+   "turnstile": 19,
+   "head": "<!DOCTYPE html> <html xmlns=\"http://www.w3.org/1999/xhtml\" l…(trimmed)"
+  }
+ }
+}
