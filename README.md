@@ -21,7 +21,7 @@
 
 **線上體驗**：https://yuhaoliaosideproject.github.io/AirTicketsPrice/web/
 
-支援 7 條航線切換（東京 / 大阪 / 福岡 / 札幌 / 名古屋 / 釜山 / 胡志明）、航班切換、hover 查看單週票價、Summary 三卡（最便宜出發週 / 全域平均 / 旺季提醒）。
+支援 12 條航線切換（東京 / 大阪 / 福岡 / 札幌 / 函館 / 沖繩 / 名古屋 / 釜山 / 胡志明 / 曼谷 / 新加坡 / 吉隆坡）、航班切換、hover 查看單週票價、Summary 三卡（最便宜出發週 / 全域平均 / 旺季提醒）。
 
 ## 📋 環境需求
 
@@ -103,12 +103,12 @@ python -m http.server 8000
 
 | 參數 | 說明 | 預設 |
 |------|------|------|
-| `ROUTES` | 追蹤的航線 | TPE-NRT（東京）、TPE-KIX（大阪）、TPE-FUK（福岡）、TPE-CTS（札幌）、TPE-NGO（名古屋）、TPE-OKA（沖繩）、TPE-PUS（釜山）、TPE-SGN（胡志明）、TPE-BKK（曼谷）、TPE-SIN（新加坡）、TPE-KUL（吉隆坡） |
+| `ROUTES` | 追蹤的航線 | TPE-NRT（東京）、TPE-KIX（大阪）、TPE-FUK（福岡）、TPE-CTS（札幌）、TPE-HKD（函館）、TPE-NGO（名古屋）、TPE-OKA（沖繩）、TPE-PUS（釜山）、TPE-SGN（胡志明）、TPE-BKK（曼谷）、TPE-SIN（新加坡）、TPE-KUL（吉隆坡） |
 | `NUM_WEEKS` | 查詢未來幾週 | 40 |
 | `RETURN_AFTER_DAYS` | 回程 = 去程 + 天數（下週日） | 8 |
 | `CABIN` | 艙等 | eco |
 
-**可用航線**（星宇直飛）：TPE-NRT 東京 / TPE-KIX 大阪 / TPE-FUK 福岡 / TPE-CTS 札幌 / TPE-NGO 名古屋 / TPE-OKA 沖繩 / TPE-PUS 釜山 / TPE-SGN 胡志明 / TPE-BKK 曼谷 / TPE-SIN 新加坡 / TPE-KUL 吉隆坡
+**可用航線**（星宇直飛）：TPE-NRT 東京 / TPE-KIX 大阪 / TPE-FUK 福岡 / TPE-CTS 札幌 / TPE-HKD 函館 / TPE-NGO 名古屋 / TPE-OKA 沖繩 / TPE-PUS 釜山 / TPE-SGN 胡志明 / TPE-BKK 曼谷 / TPE-SIN 新加坡 / TPE-KUL 吉隆坡
 
 想加航線就在 `ROUTES` 加一行：
 
@@ -240,7 +240,7 @@ api/
 純靜態前端單頁儀表板（零建置、零依賴），顯示各航線未來 40 週來回票價趨勢：
 
 - 40 週每週最低價折線 + 全域平均虛線 + 最低價標記 + 旺季區塊（過年／櫻花季）
-- 航線切換（東京／大阪／福岡／札幌／名古屋／釜山／胡志明）、航班切換、hover tooltip
+- 航線切換（東京／大阪／福岡／札幌／函館／沖繩／名古屋／釜山／胡志明／曼谷／新加坡／吉隆坡）、航班切換、hover tooltip
 - Summary 三卡（最便宜出發週／全域平均／旺季提醒）
 
 

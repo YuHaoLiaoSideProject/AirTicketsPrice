@@ -168,7 +168,7 @@ def run_tests(browser):
     check('E2E-01 更新時間 badge', f'資料更新 {exp_date}' in page.locator('#updText').inner_text(),
           f'期望 {exp_date}')
     tab_count = page.locator('#routeTabs button').count()
-    check('E2E-01 航線 tab 有 6 個（日本地區全部航線）', tab_count == 6, f'got {tab_count}')
+    check('E2E-01 航線 tab 有 7 個（日本地區全部航線）', tab_count == 7, f'got {tab_count}')
     check('E2E-02 折線繪出', page.locator('#chart path.price-line').count() == 1)
     check('E2E-02 Summary 三卡可見（有資料）', not page.locator('#summary').evaluate('el => el.hidden'))
     # 回歸：狀態容器初始必須隱藏（CSS [hidden] 不可被 display 覆蓋）

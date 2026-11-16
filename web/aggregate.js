@@ -26,6 +26,7 @@
       { id: 'TPE-KIX', name: '大阪' },
       { id: 'TPE-FUK', name: '福岡' },
       { id: 'TPE-CTS', name: '札幌' },
+      { id: 'TPE-HKD', name: '函館' },
       { id: 'TPE-OKA', name: '沖繩' },
       { id: 'TPE-NGO', name: '名古屋' },
       { id: 'TPE-PUS', name: '釜山' },
@@ -36,7 +37,7 @@
     ],
     // 地區分群（預設值；api/index.json 帶入時會覆寫）
     REGIONS: [
-      { id: 'japan', name: '日本', routes: ['TPE-NRT', 'TPE-KIX', 'TPE-FUK', 'TPE-CTS', 'TPE-OKA', 'TPE-NGO'] },
+      { id: 'japan', name: '日本', routes: ['TPE-NRT', 'TPE-KIX', 'TPE-FUK', 'TPE-CTS', 'TPE-HKD', 'TPE-OKA', 'TPE-NGO'] },
       { id: 'other', name: '其他', routes: ['TPE-PUS', 'TPE-SGN', 'TPE-BKK', 'TPE-SIN', 'TPE-KUL'] },
     ],
     // 日期範圍：僅保留「全部」，不限制週數
@@ -50,7 +51,7 @@
     PEAKS: [
       { label: '農曆過年', from: '2027-01-30', to: '2027-02-06' }, // 40 週 idx 24–25
       { label: '櫻花季',   from: '2027-03-27', to: '2027-04-03', routes: ['TPE-NRT', 'TPE-KIX', 'TPE-FUK'] }, // 本州
-      { label: '櫻花季',   from: '2027-04-24', to: '2027-05-01', routes: ['TPE-CTS'] }, // 北海道（札幌）
+      { label: '櫻花季',   from: '2027-04-24', to: '2027-05-01', routes: ['TPE-CTS', 'TPE-HKD'] }, // 北海道（札幌 / 函館）
       { label: '櫻花季',   from: '2027-01-20', to: '2027-02-05', routes: ['TPE-OKA'] }, // 沖繩（寒緋櫻，比本州早 2 個月）
     ],
     Y: {},                            // Y 軸改為從資料動態計算（app.js buildChart）
